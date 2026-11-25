@@ -14,7 +14,7 @@ export class PhoneOverlay {
   public isOpen = false;
   private el: HTMLElement;
   private tabContentEl: HTMLElement;
-  private activeTab: 'gigs' | 'map' | 'dialer' = 'gigs';
+  private activeTab: 'gigs' | 'inside' | 'map' | 'dialer' = 'gigs';
   private cb: PhoneCallbacks;
   private gigs: GigTemplate[];
   private latestWeather!: WeatherState;
@@ -54,8 +54,9 @@ export class PhoneOverlay {
       <div id="phone-body" class="flex-1 overflow-y-auto p-3.5 space-y-2.5 bg-gradient-to-b from-slate-950 to-slate-900"></div>
 
       <!-- Bottom Tabs -->
-      <div class="bg-slate-900 border-t border-white/10 grid grid-cols-3 text-xs font-semibold">
+      <div class="bg-slate-900 border-t border-white/10 grid grid-cols-4 text-[11px] font-semibold">
         <button data-tab="gigs" class="py-2.5 text-amber-400 border-t-2 border-amber-400 cursor-pointer">Gigs</button>
+        <button data-tab="inside" class="py-2.5 text-slate-400 hover:text-white cursor-pointer">Inside</button>
         <button data-tab="map" class="py-2.5 text-slate-400 hover:text-white cursor-pointer">Map</button>
         <button data-tab="dialer" class="py-2.5 text-slate-400 hover:text-white cursor-pointer">Cheats</button>
       </div>
@@ -71,7 +72,7 @@ export class PhoneOverlay {
 
     this.el.querySelectorAll('button[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const t = btn.getAttribute('data-tab') as 'gigs' | 'map' | 'dialer';
+        const t = btn.getAttribute('data-tab') as 'gigs' | 'inside' | 'map' | 'dialer';
         this.activeTab = t;
         this.el.querySelectorAll('button[data-tab]').forEach((b) => {
           const active = b.getAttribute('data-tab') === t;
@@ -136,6 +137,33 @@ export class PhoneOverlay {
         });
         this.tabContentEl.appendChild(card);
       });
+    } else if (this.activeTab === 'inside') {
+      const photos = [
+        { src: '/refs/campus-DSC6716.jpg', title: 'RVITM Auditorium', desc: 'Chevron acoustic walls & stage truss lighting' },
+        { src: '/refs/campus-DSC6776.jpg', title: 'CSE / ISE Computer Lab', desc: 'Workstations, smart desks & vision/mission boards' },
+        { src: '/refs/campus-DSC6936.jpg', title: 'ICT Smart Classroom', desc: 'Interactive display, green chalkboard & stepped seating' },
+        { src: '/refs/campus-DSC7061.jpg', title: 'Library & Info Centre', desc: 'Signature orange racks & engineering reference collection' },
+        { src: '/refs/campus-overview.jpg', title: 'Campus Cafeteria Hall', desc: 'Granite floor, stainless dining tables & grid ceiling' },
+        { src: '/refs/campus-DSC7079.jpg', title: 'Student Brick Lounge', desc: 'Exposed terracotta brick walls & colorful hangout tables' },
+      ];
+      this.tabContentEl.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-bold uppercase tracking-wider text-amber-300">Inside RVITM Gallery</span>
+          <img src="/refs/rvitm-logo.png" alt="RV Crest" class="w-5 h-5 rounded-full bg-white p-0.5" />
+        </div>
+      `;
+      for (const p of photos) {
+        const card = document.createElement('div');
+        card.className = 'rounded-xl overflow-hidden bg-white/5 border border-white/10';
+        card.innerHTML = `
+          <img src="${p.src}" alt="${p.title}" class="w-full h-28 object-cover" />
+          <div class="p-2">
+            <div class="text-xs font-bold text-white">${p.title}</div>
+            <div class="text-[10px] text-slate-300">${p.desc}</div>
+          </div>
+        `;
+        this.tabContentEl.appendChild(card);
+      }
     } else if (this.activeTab === 'map') {
       this.tabContentEl.innerHTML = `
         <div class="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2 text-xs">

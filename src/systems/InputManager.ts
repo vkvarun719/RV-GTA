@@ -145,7 +145,10 @@ export class InputManager {
 
   requestPointerLock(): void {
     try {
-      this.canvas.requestPointerLock?.();
+      const maybePromise = this.canvas.requestPointerLock?.() as unknown as Promise<void> | undefined;
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(() => {});
+      }
     } catch {
       // Ignore browser pointer lock rejection
     }

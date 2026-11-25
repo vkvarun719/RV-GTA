@@ -10,6 +10,7 @@ import {
   createCricketTurfTexture,
   createDeptBoardTexture,
   createGateBoardTexture,
+  createPhotoPanelTexture,
   createSignboardTexture,
 } from './Textures';
 
@@ -454,6 +455,75 @@ function buildCourtyard(
   flag.position.set(LANDMARKS.courtyard.x + 1.3, 10.9, LANDMARKS.courtyard.z);
   parent.add(flag);
 
+  // "Inside RVITM" Double-Sided Photo Gallery Boards along the Courtyard
+  const showcasePanels: Array<{
+    x: number;
+    z: number;
+    rotY: number;
+    front: [string, string, string];
+    back: [string, string, string];
+  }> = [
+    {
+      x: 24.5,
+      z: -4.0,
+      rotY: -0.22,
+      front: ['/refs/campus-DSC6716.jpg', 'RVITM AUDITORIUM', 'Chevron Acoustic Walls & Spotlights'],
+      back: ['/refs/campus-DSC6936.jpg', 'SMART CLASSROOMS', 'Interactive Digital Displays & Dual Boards'],
+    },
+    {
+      x: 29.8,
+      z: 3.5,
+      rotY: 0.55,
+      front: ['/refs/campus-DSC6776.jpg', 'COMPUTER & AI LABS', 'High-Speed Workstations & Smart Desks'],
+      back: ['/refs/campus-DSC7061.jpg', 'CENTRAL LIBRARY', 'Orange Book Stacks & Digital Archive'],
+    },
+    {
+      x: 23.0,
+      z: 18.0,
+      rotY: -0.5,
+      front: ['/refs/campus-overview.jpg', 'RVITM CAFETERIA', 'Granite Floor & Stainless Dining'],
+      back: ['/refs/campus-DSC7079.jpg', 'STUDENT BRICK LOUNGE', 'Collaborative Study & Hangout Zone'],
+    },
+  ];
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.4 });
+  for (const sp of showcasePanels) {
+    const stand = new THREE.Group();
+    stand.position.set(sp.x, 0, sp.z);
+    stand.rotation.y = sp.rotY;
+
+    for (const px of [-1.45, 1.45]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.7, 8), frameMat);
+      post.position.set(px, 1.35, 0);
+      stand.add(post);
+    }
+
+    const box = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.15, 0.14), frameMat);
+    box.position.set(0, 1.8, 0);
+    box.castShadow = true;
+    stand.add(box);
+
+    const fTex = createPhotoPanelTexture(...sp.front);
+    const frontFace = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.05, 2.02),
+      new THREE.MeshStandardMaterial({ map: fTex, roughness: 0.35 })
+    );
+    frontFace.position.set(0, 1.8, 0.08);
+    stand.add(frontFace);
+
+    const bTex = createPhotoPanelTexture(...sp.back);
+    const backFace = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.05, 2.02),
+      new THREE.MeshStandardMaterial({ map: bTex, roughness: 0.35 })
+    );
+    backFace.position.set(0, 1.8, -0.08);
+    backFace.rotation.y = Math.PI;
+    stand.add(backFace);
+
+    parent.add(stand);
+    physics.addStaticBox(sp.x, 1.35, sp.z, 1.6, 1.35, 0.2, sp.rotY);
+  }
+
   return flag;
 }
 
@@ -462,40 +532,64 @@ function buildCanteen(parent: THREE.Group, physics: PhysicsWorld): void {
   g.position.set(LANDMARKS.canteen.x, 0, LANDMARKS.canteen.z);
   g.rotation.y = -0.18;
 
+  // Polished dark granite cafeteria floor matching campus-overview.jpg
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(15, 0.25, 11),
-    new THREE.MeshStandardMaterial({ color: 0xded7c9, roughness: 0.85 })
+    new THREE.MeshStandardMaterial({ color: 0x574c48, roughness: 0.32, metalness: 0.18 })
   );
   floor.position.y = 0.12;
   floor.receiveShadow = true;
   g.add(floor);
 
-  // Kitchen block on South side
+  // White kitchen block + charcoal granite dado band
   const kitchen = new THREE.Mesh(
     new THREE.BoxGeometry(14, 3.6, 4.5),
-    new THREE.MeshStandardMaterial({ color: 0xf6efe4, roughness: 0.8 })
+    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72 })
   );
   kitchen.position.set(0, 1.9, 2.8);
   kitchen.castShadow = true;
   kitchen.receiveShadow = true;
   g.add(kitchen);
 
+  const dadoBand = new THREE.Mesh(
+    new THREE.BoxGeometry(14.08, 0.26, 4.56),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45 })
+  );
+  dadoBand.position.set(0, 1.75, 2.8);
+  g.add(dadoBand);
+
+  // Exposed brick side wall (matching campus-DSC7079.jpg student lounge!)
+  const brickLoungeWall = new THREE.Mesh(
+    new THREE.BoxGeometry(0.45, 3.6, 6.2),
+    new THREE.MeshStandardMaterial({ color: 0xa24e38, roughness: 0.88 })
+  );
+  brickLoungeWall.position.set(-7.1, 1.9, -2.2);
+  brickLoungeWall.castShadow = true;
+  g.add(brickLoungeWall);
+
   // Serving Counter
   const counter = new THREE.Mesh(
     new THREE.BoxGeometry(10, 1.15, 1.0),
-    new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.55 })
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.4 })
   );
   counter.position.set(0, 0.7, 0.1);
   g.add(counter);
 
-  // Corrugated Terracotta Canopy Roof over dining
+  // Perforated grey canopy roof with warm gold acoustic center panel
   const roof = new THREE.Mesh(
     new THREE.BoxGeometry(16, 0.32, 12),
-    new THREE.MeshStandardMaterial({ color: 0xb93829, roughness: 0.6 })
+    new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.55, metalness: 0.3 })
   );
   roof.position.set(0, 4.2, 0);
   roof.castShadow = true;
   g.add(roof);
+
+  const goldCeiling = new THREE.Mesh(
+    new THREE.BoxGeometry(7.2, 0.08, 4.6),
+    new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.45 })
+  );
+  goldCeiling.position.set(0, 4.02, -1.6);
+  g.add(goldCeiling);
 
   for (const px of [-6.5, 0, 6.5]) {
     const col = new THREE.Mesh(
@@ -508,9 +602,9 @@ function buildCanteen(parent: THREE.Group, physics: PhysicsWorld): void {
 
   // Signboard
   const signTex = createSignboardTexture(
-    'RVITM CANTEEN & FOOD COURT',
+    'RVITM CANTEEN & CAFETERIA',
     'Masala Dosa • Samosa • Chai • Cold Coffee',
-    '#7c2d12',
+    '#6f1620',
     '#fef3c7',
     '#f59e0b'
   );
@@ -522,19 +616,28 @@ function buildCanteen(parent: THREE.Group, physics: PhysicsWorld): void {
   sign.rotation.y = Math.PI;
   g.add(sign);
 
-  // Also add front-facing sign facing East/North
   const signFront = sign.clone();
   signFront.position.set(0, 3.3, -5.98);
   signFront.rotation.y = 0;
   g.add(signFront);
 
-  // 4 Picnic Dining Tables
-  const tableMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.65 });
-  for (const tx of [-4.5, -1.5, 1.5, 4.5]) {
-    const tbl = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.75, 1.1), tableMat);
-    tbl.position.set(tx, 0.55, -2.5);
-    tbl.castShadow = true;
-    g.add(tbl);
+  // Stainless Steel Standing Dining Tables (matching campus-overview.jpg)
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.25, metalness: 0.8 });
+  for (const tx of [-4.2, -1.4, 1.4, 4.2]) {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.08, 1.05), steelMat);
+    top.position.set(tx, 1.05, -2.5);
+    top.castShadow = true;
+    g.add(top);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.05, 0.9), steelMat);
+    shelf.position.set(tx, 0.52, -2.5);
+    g.add(shelf);
+    for (const lx of [-0.75, 0.75]) {
+      for (const lz of [-0.42, 0.42]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.02, 6), steelMat);
+        leg.position.set(tx + lx, 0.55, -2.5 + lz);
+        g.add(leg);
+      }
+    }
   }
 
   parent.add(g);

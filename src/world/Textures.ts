@@ -70,7 +70,24 @@ export function createGateBoardTexture(): THREE.CanvasTexture {
   ctx.font = '600 20px system-ui, sans-serif';
   ctx.fillText('Chaithanya Layout, 8th Phase, J.P. Nagar, Bengaluru - 560076', 195, 202);
 
-  return finishTexture(c);
+  const tex = finishTexture(c);
+
+  // Overlay official RSST RV crest logo once loaded
+  const logoImg = new Image();
+  logoImg.onload = () => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(105, 128, 57, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(46, 69, 118, 118);
+    ctx.drawImage(logoImg, 52, 75, 106, 106);
+    ctx.restore();
+    tex.needsUpdate = true;
+  };
+  logoImg.src = '/refs/rvitm-logo.png';
+
+  return tex;
 }
 
 export function createSignboardTexture(
@@ -268,4 +285,48 @@ export function createBuildingWindowTexture(): THREE.CanvasTexture {
   }
 
   return finishTexture(c, 6, 7);
+}
+
+export function createPhotoPanelTexture(src: string, title: string, subtitle: string): THREE.CanvasTexture {
+  const [c, ctx] = makeCanvas(512, 360);
+
+  const drawFrame = () => {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 512, 360);
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(4, 4, 504, 352);
+
+    ctx.fillStyle = '#6f1620';
+    ctx.fillRect(8, 286, 496, 66);
+
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = '800 22px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, 22, 309);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '500 15px system-ui, sans-serif';
+    ctx.fillText(subtitle, 22, 334);
+  };
+
+  drawFrame();
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(14, 14, 484, 268);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = 'bold 20px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, 256, 150);
+
+  const tex = finishTexture(c);
+  const img = new Image();
+  img.onload = () => {
+    drawFrame();
+    ctx.drawImage(img, 14, 14, 484, 268);
+    tex.needsUpdate = true;
+  };
+  img.src = src;
+
+  return tex;
 }
