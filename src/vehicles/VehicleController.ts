@@ -27,10 +27,16 @@ export class VehicleManager {
   private scene: THREE.Scene;
   private physics: PhysicsWorld;
   private spawnCounter = 0;
+  private headlightBeam: THREE.SpotLight;
 
   constructor(scene: THREE.Scene, physics: PhysicsWorld) {
     this.scene = scene;
     this.physics = physics;
+
+    this.headlightBeam = new THREE.SpotLight(0xfff4d2, 0, 42, Math.PI * 0.24, 0.45, 1.4);
+    this.headlightBeam.castShadow = false;
+    this.scene.add(this.headlightBeam);
+    this.scene.add(this.headlightBeam.target);
 
     for (const s of VEHICLE_SPAWNS) {
       this.spawnVehicle(s.kind, s.x, s.z, s.yaw, s.id);
@@ -79,7 +85,7 @@ export class VehicleManager {
     return v;
   }
 
-  findNearest(pos: THREE.Vector3, maxDist = 4.6): DrivableVehicle | null {
+  findNearest(pos: THREE.Vector3, maxDist = 5.4): DrivableVehicle | null {
     let best: DrivableVehicle | null = null;
     let bestD = maxDist;
     for (const v of this.vehicles) {
@@ -97,11 +103,36 @@ export class VehicleManager {
     if (this.activeVehicle) {
       const v = this.activeVehicle;
       const t = v.body.translation();
-      // Place player cleanly to the left side of the vehicle
-      const sideX = Math.cos(v.yaw) * (v.model.spec.halfExtents[0] + 1.05);
-      const sideZ = -Math.sin(v.yaw) * (v.model.spec.halfExtents[0] + 1.05);
+      const baseY = Math.max(0.2, t.y - v.model.spec.halfExtents[1] + 0.1);
+      const sideDist = v.model.spec.halfExtents[0] + 1.1;
+      const backDist = v.model.spec.halfExtents[2] + 1.2;
+
+      // Try left side, right side, behind, or roof to avoid clipping inside walls/buildings
+      const candidates: Array<[number, number, number]> = [
+        [t.x + Math.cos(v.yaw) * sideDist, baseY, t.z - Math.sin(v.yaw) * sideDist],
+        [t.x - Math.cos(v.yaw) * sideDist, baseY, t.z + Math.sin(v.yaw) * sideDist],
+        [t.x - Math.sin(v.yaw) * backDist, baseY, t.z - Math.cos(v.yaw) * backDist],
+        [t.x, t.y + v.model.spec.halfExtents[1] + 0.4, t.z],
+      ];
+
+      let chosen = candidates[0];
+      for (const cand of candidates) {
+        const dx = cand[0] - t.x;
+        const dz = cand[2] - t.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.05) {
+          chosen = cand;
+          break;
+        }
+        const hit = this.physics.castRay(t.x, baseY + 0.8, t.z, dx / len, 0, dz / len, len + 0.4, v.body);
+        if (!hit) {
+          chosen = cand;
+          break;
+        }
+      }
+
       player.setInVehicle(false);
-      player.teleport(t.x + sideX, Math.max(0.2, t.y - v.model.spec.halfExtents[1] + 0.1), t.z + sideZ, v.yaw);
+      player.teleport(chosen[0], chosen[1], chosen[2], v.yaw);
       this.activeVehicle = null;
       return { entered: null, exited: true };
     }
@@ -194,10 +225,15 @@ export class VehicleManager {
         v.fareInr = 30 + Math.max(0, v.distanceKm - 1.5) * 15;
       }
 
-      // Sync Three.js mesh to physics body
+      // Sync Three.js mesh to physics body & guard world bounds
       const pos = v.body.translation();
       const hy = v.model.spec.halfExtents[1];
-      v.model.group.position.set(pos.x, pos.y - hy, pos.z);
+      if (pos.y < -10 || Math.abs(pos.x) > 430 || Math.abs(pos.z) > 430) {
+        v.body.setTranslation({ x: 68, y: hy + 0.2, z: -20 }, true);
+        v.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      }
+      const syncedPos = v.body.translation();
+      v.model.group.position.set(syncedPos.x, syncedPos.y - hy, syncedPos.z);
       v.model.group.rotation.set(0, yaw, v.leanVisual, 'YXZ');
 
       v.wheelSpin += fwdSpeed * dt * 2.8;
@@ -210,6 +246,27 @@ export class VehicleManager {
       for (const hm of v.model.headlightMats) {
         hm.emissiveIntensity = hlGlow;
       }
+
+      if (isActive) {
+        this.headlightBeam.intensity = isNightOrRain ? 24 : 0;
+        if (isNightOrRain) {
+          const noseDist = v.model.spec.halfExtents[2] + 0.2;
+          this.headlightBeam.position.set(
+            syncedPos.x + fwdX * noseDist,
+            syncedPos.y + 0.2,
+            syncedPos.z + fwdZ * noseDist
+          );
+          this.headlightBeam.target.position.set(
+            syncedPos.x + fwdX * 18,
+            0.1,
+            syncedPos.z + fwdZ * 18
+          );
+        }
+      }
+    }
+
+    if (!this.activeVehicle) {
+      this.headlightBeam.intensity = 0;
     }
   }
 

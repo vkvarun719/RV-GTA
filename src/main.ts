@@ -109,7 +109,7 @@ async function bootstrap(): Promise<void> {
     const base = vehicleManager.getActivePosition() ?? player.getPosition();
     const fwdX = -Math.sin(chaseCam.yaw);
     const fwdZ = -Math.cos(chaseCam.yaw);
-    const dist = kind === 'tanker' || kind === 'bus' ? 7.2 : 4.5;
+    const dist = kind === 'tanker' || kind === 'bus' ? 5.6 : 3.6;
     vehicleManager.spawnVehicle(
       kind,
       base.x + fwdX * dist,
@@ -212,6 +212,8 @@ async function bootstrap(): Promise<void> {
       if (ok) {
         graphics.setQuality(saveManager.data.graphicsQuality);
         weather.setOverride(saveManager.data.weatherOverride);
+        audio.toggleRadio(saveManager.data.radioEnabled);
+        missionManager.completedIds.clear();
         for (const id of saveManager.data.completedMissions) {
           missionManager.completedIds.add(id);
         }
@@ -224,7 +226,12 @@ async function bootstrap(): Promise<void> {
     },
     onResetSave: () => {
       saveManager.reset();
+      missionManager.cancelActiveMission('Progress reset');
       missionManager.completedIds.clear();
+      player.superMachaMode = false;
+      audio.toggleRadio(false);
+      graphics.setQuality(saveManager.data.graphicsQuality);
+      weather.setOverride(saveManager.data.weatherOverride);
       pauseMenu.renderState(saveManager.data, graphics.autoQuality);
       hud.showToast('Progress reset to ₹500');
     },
@@ -235,6 +242,7 @@ async function bootstrap(): Promise<void> {
 
   // Bind controls
   input.onAction('vehicleToggle', () => {
+    if (photoMode.active) return;
     const res = vehicleManager.toggleEnterExit(player);
     if (res.entered) {
       hud.showToast(`Riding ${res.entered.model.spec.name}`);
@@ -245,12 +253,14 @@ async function bootstrap(): Promise<void> {
   });
 
   input.onAction('horn', () => {
+    if (photoMode.active) return;
     if (vehicleManager.activeVehicle) {
       audio.playHorn(vehicleManager.activeVehicle.kind);
     }
   });
 
   input.onAction('interact', () => {
+    if (photoMode.active) return;
     const pos = vehicleManager.getActivePosition() ?? player.getPosition();
 
     // 1. Check nearby Mission Start Beacon

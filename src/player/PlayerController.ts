@@ -184,8 +184,12 @@ export class PlayerController {
 
     this.body.setLinvel({ x: nextVx, y: nextVy, z: nextVz }, true);
 
-    // Sync mesh
+    // Sync mesh & guard against falling out of world bounds
     const updated = this.body.translation();
+    if (updated.y < -10 || Math.abs(updated.x) > 430 || Math.abs(updated.z) > 430) {
+      this.teleport(PLAYER_SPAWN.x, PLAYER_SPAWN.y, PLAYER_SPAWN.z, PLAYER_SPAWN.yaw);
+      return 0;
+    }
     this.mesh.position.set(updated.x, updated.y, updated.z);
     this.mesh.rotation.y = this.yaw;
 

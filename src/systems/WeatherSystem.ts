@@ -63,7 +63,10 @@ export class WeatherSystem {
     try {
       const url =
         'https://api.open-meteo.com/v1/forecast?latitude=12.8729&longitude=77.5757&current=temperature_2m,weather_code,rain,is_day&timezone=Asia%2FKolkata';
-      const res = await fetch(url);
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), 5000) : null;
+      const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
+      if (timer) clearTimeout(timer);
       if (!res.ok) return;
       const json = (await res.json()) as {
         current?: {

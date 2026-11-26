@@ -219,6 +219,12 @@ export class PhoneOverlay {
       this.tabContentEl.querySelector('#phone-dial-btn')!.addEventListener('click', () => {
         if (input.value.trim()) runCode(input.value.trim());
       });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && input.value.trim()) {
+          e.preventDefault();
+          runCode(input.value.trim());
+        }
+      });
       this.tabContentEl.querySelectorAll('button[data-code]').forEach((b) => {
         b.addEventListener('click', () => runCode(b.getAttribute('data-code')!));
       });

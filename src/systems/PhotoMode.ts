@@ -61,7 +61,6 @@ export class PhotoMode {
       this.bannerEl.classList.remove('hidden');
       this.chaseCam.enterPhotoMode(this.camera);
     } else {
-      this.downloadSnapshot();
       this.bannerEl.classList.add('hidden');
       this.hud.setVisible(true);
       this.chaseCam.exitPhotoMode();
