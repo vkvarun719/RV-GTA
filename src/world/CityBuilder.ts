@@ -6,7 +6,7 @@ import type { BuildingFootprint, OsmDataset, RoadPolyline } from '../types/game'
 import type { PhysicsWorld } from '../systems/PhysicsWorld';
 import { createAsphaltTexture, createMicroNoiseBumpTexture, createSignboardTexture, createSpeedBreakerTexture } from './Textures';
 
-const osmData = osmDataRaw as OsmDataset;
+const osmData = osmDataRaw as unknown as OsmDataset;
 
 export interface CityVisualHandles {
   roadMaterials: THREE.MeshStandardMaterial[];

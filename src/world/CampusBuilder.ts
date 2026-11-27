@@ -16,7 +16,7 @@ import {
   createSignboardTexture,
 } from './Textures';
 
-const osmData = osmDataRaw as OsmDataset;
+const osmData = osmDataRaw as unknown as OsmDataset;
 
 export interface CampusVisualHandles {
   campusLights: THREE.MeshStandardMaterial[];

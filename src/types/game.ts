@@ -104,6 +104,7 @@ export interface VehicleTelemetry {
   kind: VehicleKind;
   name: string;
   speedKmh: number;
+  forwardSpeedKmh: number;
   fareInr: number;
   distanceKm: number;
   isAutoRickshaw: boolean;

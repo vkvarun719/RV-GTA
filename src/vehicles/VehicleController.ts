@@ -288,6 +288,7 @@ export class VehicleManager {
       kind: v.kind,
       name: v.model.spec.name,
       speedKmh: v.speedKmh,
+      forwardSpeedKmh: v.prevSpeed * 3.6,
       fareInr: v.fareInr,
       distanceKm: v.distanceKm,
       isAutoRickshaw: v.kind === 'auto',

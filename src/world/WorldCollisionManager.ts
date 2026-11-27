@@ -87,4 +87,9 @@ export class WorldCollisionManager {
       this.removeChunk(key);
     }
   }
+
+  /** Number of chunk collider bodies currently registered (debug/QA). */
+  getColliderCount(): number {
+    return this.chunkBodies.size;
+  }
 }

@@ -25,6 +25,7 @@ export interface WorldStreamerStats {
   loadedChunks: number;
   loadingChunks: number;
   failedChunks: number;
+  colliderChunks: number;
   loadedKeys: string[];
   lastError: string | null;
 }
@@ -114,6 +115,7 @@ export class WorldStreamer {
       loadedChunks: loadedKeys.length,
       loadingChunks: loadingKeys.length,
       failedChunks: this.chunkManager.getFailedCount(),
+      colliderChunks: this.collision.getColliderCount(),
       loadedKeys,
       lastError: this.lastError,
     };

@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "node scripts/test-animation-state.mjs",
+    "test:browser": "node scripts/browser-smoke-test.mjs",
     "fetch-osm": "node scripts/fetch-osm.mjs",
     "generate-world": "node scripts/generate-world.mjs",
     "split-world-chunks": "node scripts/split-world-chunks.mjs",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/three": "^0.172.0",
+    "puppeteer-core": "^23.11.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.11"

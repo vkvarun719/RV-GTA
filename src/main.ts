@@ -77,6 +77,11 @@ async function bootstrap(): Promise<void> {
   const vehicleManager = new VehicleManager(graphics.scene, physics);
   const trafficManager = new TrafficManager(graphics.scene, physics);
   const chaseCam = new ChaseCamera();
+
+  // Debug handles for automated browser QA (streaming, collision, vehicles).
+  (window as unknown as Record<string, unknown>).__nammaPlayer = player;
+  (window as unknown as Record<string, unknown>).__nammaVehicles = vehicleManager;
+  (window as unknown as Record<string, unknown>).__nammaGraphics = graphics;
   const hud = new HudOverlay(uiRoot);
   const photoMode = new PhotoMode(uiRoot, canvas, chaseCam, graphics.camera, hud);
   const clipRecorder = new ClipRecorder(canvas);

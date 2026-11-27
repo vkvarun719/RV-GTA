@@ -65,18 +65,27 @@ out body;
 out skel qt;`;
 
 const ENDPOINTS = [
+  // Fast, reliable public mirrors first (verified reachable 2026-11-27).
+  'https://overpass.osm.ch/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
   'https://overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
+
+// Per-endpoint wall-clock budget. A full 2 km query with all building/road
+// features can take 30-90 s on busy public servers, so this is deliberately
+// generous. The Overpass query itself carries [timeout:180].
+const ENDPOINT_TIMEOUT_MS = 120000;
 
 async function fetchFromOverpass() {
   for (const url of ENDPOINTS) {
     try {
       console.log(`  Trying ${url} …`);
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 25000);
+      const timer = setTimeout(() => controller.abort(), ENDPOINT_TIMEOUT_MS);
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -355,11 +364,8 @@ async function main() {
   }
 
   // ── All endpoints failed ──────────────────────────────────────────────────
-  console.error('\n[BLOCKED] All Overpass endpoints are unreachable from this environment.');
-  console.error('  overpass-api.de   → HTTP 406 (blocked)');
-  console.error('  overpass.kumi.systems → connection timeout');
-  console.error('  overpass.private.coffee → untested');
-  console.error('  maps.mail.ru      → HTTP 504');
+  console.error('\n[BLOCKED] All configured Overpass endpoints failed from this environment.');
+  console.error('  See the per-endpoint HTTP status / error messages logged above.');
   console.error('\nThe existing campus-osm.json has NOT been replaced.');
 
   // Check what we currently have

@@ -8,7 +8,7 @@ import type {
   WeatherState,
 } from '../types/game';
 
-const osmData = osmDataRaw as OsmDataset;
+const osmData = osmDataRaw as unknown as OsmDataset;
 
 export class HudOverlay {
   public readonly root: HTMLElement;

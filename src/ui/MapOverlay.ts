@@ -2,7 +2,7 @@ import { ACADEMIC_BLOCK, LANDMARKS } from '../data/campus-layout';
 import osmDataRaw from '../data/campus-osm.json';
 import type { MinimapBlip, OsmDataset } from '../types/game';
 
-const osmData = osmDataRaw as OsmDataset;
+const osmData = osmDataRaw as unknown as OsmDataset;
 
 export class MapOverlay {
   public isOpen = false;
