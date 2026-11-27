@@ -223,5 +223,169 @@ export function buildInstancedProps(scene: THREE.Scene): PropHandles {
   });
   scene.add(benches);
 
+  // 5. Outer-world vegetation & grass scatter (deterministic) so the expanded
+  // 2 km world is not an empty green plane. Instanced (2-3 draw calls total).
+  let seed = 1337;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const outerTrees: Array<{ x: number; z: number; scale: number; rot: number }> = [];
+  for (let i = 0; i < 300; i++) {
+    const a = rnd() * Math.PI * 2;
+    const r = 120 + rnd() * 1500;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (Math.hypot(x, z) < 115) continue; // keep the handcrafted campus clear
+    outerTrees.push({ x, z, scale: 0.9 + rnd() * 0.9, rot: rnd() * Math.PI });
+  }
+  const outerTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, outerTrees.length);
+  const outerCrowns = new THREE.InstancedMesh(crownGeo, greenMat, outerTrees.length * 2);
+  outerTrunks.castShadow = true;
+  outerCrowns.castShadow = true;
+  let ocIdx = 0;
+  outerTrees.forEach((t, i) => {
+    dummy.position.set(t.x, 1.6 * t.scale, t.z);
+    dummy.scale.set(t.scale, t.scale, t.scale);
+    dummy.rotation.set(0, t.rot, 0);
+    dummy.updateMatrix();
+    outerTrunks.setMatrixAt(i, dummy.matrix);
+    for (const [ox, oy, oz, ls] of [lobeOffsets[0], lobeOffsets[1]] as Array<[number, number, number, number]>) {
+      dummy.position.set(t.x + ox * t.scale, oy * t.scale, t.z + oz * t.scale);
+      dummy.scale.set(t.scale * ls * 1.1, t.scale * ls * 0.82, t.scale * ls * 1.1);
+      dummy.updateMatrix();
+      outerCrowns.setMatrixAt(ocIdx++, dummy.matrix);
+    }
+  });
+
+  const grassSpots: Array<{ x: number; z: number }> = [];
+  for (let i = 0; i < 220; i++) {
+    const a = rnd() * Math.PI * 2;
+    const r = 90 + rnd() * 1500;
+    grassSpots.push({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+  }
+  const grassGeo = new THREE.ConeGeometry(0.5, 0.7, 5);
+  const grassMat = new THREE.MeshStandardMaterial({ color: 0x4d7c0f, roughness: 0.95 });
+  const grass = new THREE.InstancedMesh(grassGeo, grassMat, grassSpots.length);
+  grassSpots.forEach((g, i) => {
+    dummy.position.set(g.x, 0.35, g.z);
+    dummy.scale.set(1, 1, 1);
+    dummy.rotation.set(0, (i * 0.7) % Math.PI, 0);
+    dummy.updateMatrix();
+    grass.setMatrixAt(i, dummy.matrix);
+  });
+  scene.add(outerTrunks, outerCrowns, grass);
+
+  // 6. Bus-stop shelters along 80 Feet Road (instanced posts + roof).
+  const shelterSpots = [
+    { x: 70, z: -60, rotY: 0 },
+    { x: 66, z: 60, rotY: 0 },
+    { x: 40, z: 150, rotY: Math.PI / 2 },
+  ];
+  const shelterPostGeo = new THREE.BoxGeometry(0.12, 2.4, 0.12);
+  const shelterRoofGeo = new THREE.BoxGeometry(3.2, 0.16, 1.4);
+  const shelterMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.5, metalness: 0.3 });
+  const shelterPosts = new THREE.InstancedMesh(shelterPostGeo, poleMat, shelterSpots.length * 2);
+  const shelterRoofs = new THREE.InstancedMesh(shelterRoofGeo, shelterMat, shelterSpots.length);
+  shelterRoofs.castShadow = true;
+  shelterSpots.forEach((s, i) => {
+    for (let k = 0; k < 2; k++) {
+      const off = k === 0 ? -1.4 : 1.4;
+      dummy.position.set(s.x + Math.cos(s.rotY) * off, 1.2, s.z - Math.sin(s.rotY) * off);
+      dummy.rotation.set(0, s.rotY, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      shelterPosts.setMatrixAt(i * 2 + k, dummy.matrix);
+    }
+    dummy.position.set(s.x, 2.4, s.z);
+    dummy.updateMatrix();
+    shelterRoofs.setMatrixAt(i, dummy.matrix);
+  });
+  scene.add(shelterPosts, shelterRoofs);
+
+  // 7. Street furniture: trash cans & bollards along 80 Feet Road & campus edges
+  const furnitureSpots: Array<{ x: number; z: number; rotY: number; kind: 'bin' | 'bollard' }> = [
+    // Along 80 Feet Road sidewalk
+    { x: 68.5, z: -110, rotY: 0, kind: 'bin' },
+    { x: 67.0, z: -30, rotY: 0, kind: 'bin' },
+    { x: 65.5, z: 40, rotY: 0, kind: 'bin' },
+    { x: 63.0, z: 110, rotY: 0, kind: 'bin' },
+    // Campus driveway
+    { x: 52.0, z: -45, rotY: 0, kind: 'bollard' },
+    { x: 50.0, z: -30, rotY: 0, kind: 'bollard' },
+    { x: 48.0, z: -15, rotY: 0, kind: 'bollard' },
+    { x: 46.0, z: 5, rotY: 0, kind: 'bollard' },
+    { x: 44.0, z: 25, rotY: 0, kind: 'bollard' },
+    // Chai tapri area
+    { x: 83.5, z: -26, rotY: -0.12, kind: 'bin' },
+    { x: 80.0, z: -8, rotY: -0.12, kind: 'bollard' },
+    // BMTC stop
+    { x: 74.0, z: -55, rotY: -0.12, kind: 'bin' },
+  ];
+
+  const binGeo = new THREE.CylinderGeometry(0.32, 0.38, 0.9, 10);
+  const binMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4, metalness: 0.55 });
+  const bollardGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.9, 8);
+  const bollardMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.6, metalness: 0.3 });
+
+  const binSpots = furnitureSpots.filter((s) => s.kind === 'bin');
+  const bollardSpots = furnitureSpots.filter((s) => s.kind === 'bollard');
+
+  const bins = new THREE.InstancedMesh(binGeo, binMat, binSpots.length);
+  const bollards = new THREE.InstancedMesh(bollardGeo, bollardMat, bollardSpots.length);
+  bins.castShadow = true;
+  bins.receiveShadow = true;
+  bollards.castShadow = true;
+  bollards.receiveShadow = true;
+
+  binSpots.forEach((s, i) => {
+    dummy.position.set(s.x, 0.45, s.z);
+    dummy.rotation.set(0, s.rotY, 0);
+    dummy.updateMatrix();
+    bins.setMatrixAt(i, dummy.matrix);
+  });
+  bollardSpots.forEach((s, i) => {
+    dummy.position.set(s.x, 0.45, s.z);
+    dummy.rotation.set(0, s.rotY, 0);
+    dummy.updateMatrix();
+    bollards.setMatrixAt(i, dummy.matrix);
+  });
+  scene.add(bins, bollards);
+
+  // 8. Additional vegetation clusters along roadsides (deterministic scatter)
+  let seed2 = 2468;
+  const rnd2 = () => {
+    seed2 = (seed2 * 1664525 + 1013904223) >>> 0;
+    return seed2 / 4294967296;
+  };
+  const roadsideTrees: Array<{ x: number; z: number; scale: number; rot: number }> = [];
+  for (let i = 0; i < 120; i++) {
+    const a = rnd2() * Math.PI * 2;
+    const r = 180 + rnd2() * 900;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (Math.hypot(x, z) < 140) continue;
+    roadsideTrees.push({ x, z, scale: 0.8 + rnd2() * 0.7, rot: rnd2() * Math.PI });
+  }
+  const roadTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, roadsideTrees.length);
+  const roadCrowns = new THREE.InstancedMesh(crownGeo, greenMat, roadsideTrees.length * 2);
+  roadTrunks.castShadow = true;
+  roadCrowns.castShadow = true;
+  let rcIdx = 0;
+  roadsideTrees.forEach((t, i) => {
+    dummy.position.set(t.x, 1.6 * t.scale, t.z);
+    dummy.scale.set(t.scale, t.scale, t.scale);
+    dummy.rotation.set(0, t.rot, 0);
+    dummy.updateMatrix();
+    roadTrunks.setMatrixAt(i, dummy.matrix);
+    for (const [ox, oy, oz, ls] of [lobeOffsets[0], lobeOffsets[1]]) {
+      dummy.position.set(t.x + ox * t.scale, oy * t.scale, t.z + oz * t.scale);
+      dummy.scale.set(t.scale * ls * 1.1, t.scale * ls * 0.82, t.scale * ls * 1.1);
+      dummy.updateMatrix();
+      roadCrowns.setMatrixAt(rcIdx++, dummy.matrix);
+    }
+  });
+  scene.add(roadTrunks, roadCrowns);
+
   return { streetLampMaterial };
 }

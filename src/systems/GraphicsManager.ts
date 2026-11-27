@@ -24,8 +24,9 @@ export class GraphicsManager {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.15;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x8ec5ea);
@@ -42,20 +43,20 @@ export class GraphicsManager {
     this.hemiLight = new THREE.HemisphereLight(0xdff1ff, 0x56594e, 0.95);
     this.scene.add(this.hemiLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xfff1d6, 2.1);
+    this.sunLight = new THREE.DirectionalLight(0xfff1d6, 2.4);
     this.sunLight.position.set(85, 115, 55);
     this.sunLight.castShadow = true;
-    // Capped at 1024x1024 per performance target
-    this.sunLight.shadow.mapSize.set(1024, 1024);
-    this.sunLight.shadow.camera.near = 15;
-    this.sunLight.shadow.camera.far = 320;
-    const d = 115;
+    // Higher-resolution shadows for crisp building/character silhouettes
+    this.sunLight.shadow.mapSize.set(2048, 2048);
+    this.sunLight.shadow.camera.near = 10;
+    this.sunLight.shadow.camera.far = 420;
+    const d = 130;
     this.sunLight.shadow.camera.left = -d;
     this.sunLight.shadow.camera.right = d;
     this.sunLight.shadow.camera.top = d;
     this.sunLight.shadow.camera.bottom = -d;
-    this.sunLight.shadow.bias = -0.0004;
-    this.sunLight.shadow.normalBias = 0.02;
+    this.sunLight.shadow.bias = -0.0005;
+    this.sunLight.shadow.normalBias = 0.025;
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
 

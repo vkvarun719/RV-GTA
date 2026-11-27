@@ -37,8 +37,26 @@
 - **Mechanics (real keyboard events)**: walk, sprint (`currentAnim=Sprint`), jump (+1.1 m), vehicle
   enter, accelerate, reverse (signed −2.5 km/h), exit.
 - **Measured FPS ≈ 5–7** (software SwiftShader — **not** the M4 Pro figure). **JS heap ≈ 43 MB**.
-- Screenshots: `qa-screenshots/01-spawn-idle.png`, `02-far-corner.png`, `03-campus-return.png`.
+- Screenshots: `qa-screenshots/01-spawn-idle.png` through `17-entrance-player-approach.png` (17 total,
+  including 6 Phase 2F entrance views: `12-entrance-straight`, `13-entrance-canopy-low`,
+  `14-entrance-side-columns`, `15-entrance-stairs`, `16-entrance-interior`,
+  `17-entrance-player-approach`).
 - Full log: `BROWSER_SMOKE_REPORT.md`.
+
+## 4. Phase 2F — Detailed Entrance Reconstruction — PASSED
+
+| Element | Description | Status |
+|---|---|---|
+| (A) Glass canopy | Metal grid beams + front panel over entrance | Built + QA screenshot |
+| (B) Terracotta columns | 2 columns (base + shaft + capital) flanking entrance | Built + QA screenshot |
+| (C) Granite facade | Charcoal granite + light-grey strips + narrow windows + curtain wall | Built + QA screenshot |
+| (D) Glass doors | Double doors with frames/handles + interior light + reception desk | Built + QA screenshot |
+| (E) Stone staircase | 9 steps + risers + Rapier collider + side handrails | Built + QA screenshot |
+| (F) Wooden soffit + beams | Dark wood soffit + white beams + recessed ceiling lights | Built + QA screenshot |
+| (G) Garden beds | Raised beds with stone edging + instanced tropical shrubs | Built + QA screenshot |
+
+- TypeScript: `npx tsc --noEmit` clean.
+- Instanced/shared materials used to cap draw calls; no new paid/mandatory assets.
 
 ## 4. Bugs Fixed This Phase
 
@@ -61,10 +79,11 @@ See `README.md` → "Manual playtest checklist" for exact steps.
 
 ## 6. Honest Feature Status
 
-- **Protagonist**: procedural student rig (NOT a downloaded rigged GLB). `player.glb` (Vanguard,
-  clips `Idle`/`Run`/`TPose`/`Walk`) is unused. No missing animation is faked; `TPose` never used as idle.
-- **City buildings**: extruded footprints + parapets/kerbs/markings; **no** per-building windows
-  (OSM has no architecture). Handcrafted campus has window textures/fins/signage.
+- **Protagonist**: rigged skinned student (`public/models/player_xbot.glb`, Mixamo skeleton) with real `idle`/`walk`/`run`
+  clips. `sprint` reuses run at higher speed. `jump`/`land`/`turn`/vehicle states use whole-body procedural fallbacks
+  (clearly identified). `player.glb` (Vanguard) is unused. Original procedural rig retained as load-failure fallback only.
+- **City buildings**: extruded footprints + InstancedMesh window modules, doors and balconies added at runtime
+  within 220 m LOD radius. Distant buildings remain unfenestrated extrusions. Handcrafted campus has window textures/fins/signage.
 - **Friends**: 7 distinct students preserved. **Vehicles**: 5 types. **Missions**: 9 story/side + 4 gigs (code present, not auto-playtested).
 
 ## 7. How to Run

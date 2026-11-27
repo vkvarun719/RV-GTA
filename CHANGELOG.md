@@ -1,5 +1,18 @@
 # Changelog
 
+## Phase 2F — Detailed RVITM Campus Entrance Reconstruction (2026-11-27)
+- **Detailed campus entrance** added to `src/world/CampusBuilder.ts` via `buildDetailedEntrance()` — 7 elements rebuilt from photographed reference: (A) glass canopy with exposed metal grid beams + front panel, (B) 2 terracotta columns (square base + cylindrical shaft + projecting capital), (C) dark charcoal granite facade with light-grey horizontal strips, narrow vertical windows + upper blue-tinted glass curtain wall, (D) double glass doors with frames/handles + interior recessed light + reception desk behind glass, (E) wide grey stone staircase (9 steps + risers + Rapier box collider + side handrails), (F) dark wooden soffit + white structural beams + recessed ceiling lights, (G) raised garden beds with stone edging + instanced tropical shrubs on both sides. Camera-accurate entrance position at academic block East facade `(18.7, 0, -6.3)`.
+- **New QA screenshots**: `qa-screenshots/12-entrance-straight.png`, `13-entrance-canopy-low.png`, `14-entrance-side-columns.png`, `15-entrance-stairs.png`, `16-entrance-interior.png`, `17-entrance-player-approach.png` (6 entrance views).
+- **QA**: `npm test` 5/5, `npm run build` clean (5.54 MB JS), `npm run test:browser` 23/23 (software SwiftShader FPS not representative of M4 Pro hardware).
+
+## Phase 2E Final — Visual Realism Upgrade (2026-11-27)
+- **Student protagonist**: `public/models/player_xbot.glb` (Mixamo-rigged, 2.9 MB) integrated as runtime skinned character in `PlayerController.ts`. Real skeletal clips: `idle`, `walk`, `run`. `sprint` reuses run at higher time scale. `jump`, `land`, `turn`, vehicle enter/exit use whole-body procedural fallbacks (clearly identified). Per-region materials (skin/hoodie/jeans/shoes), hair overlay, and backpack added. Procedural student rig retained as load-failure fallback.
+- **RVITM campus**: Instanced window modules added to academic block East & West facades (`CampusBuilder.ts`). Existing handcrafted geometry preserved (main gate, 7-floor block, library, auditorium, quadrangle).
+- **City architecture**: Modular facade components added to OSM buildings via `CityBuilder.ts` — InstancedMesh window modules, doors, and balconies on all four facades, grouped by colour palette (5 draw calls total). LOD culling at 220 m radius; distant buildings remain unfenestrated extrusions.
+- **Environment**: Street furniture added (trash cans, bollards along 80 Feet Road and campus edges). Additional roadside vegetation scatter (120 trees). Shadow map resolution increased to 2048x2048 PCFSoftShadowMap. Directional light intensity and shadow camera range increased.
+- **Documentation**: `metadata.json` updated with accurate runtime feature list (per-building windows within LOD, real vs procedural animation clips, player model details). `ASSET_LICENSES.md` updated with `player_xbot.glb` attribution.
+- **QA**: `npm test` 5/5, `npm run build` clean, `npm run test:browser` 23/23 (software SwiftShader FPS not representative of M4 Pro hardware). 11 QA screenshots captured in `qa-screenshots/`.
+
 ## Phase 2D + 2E — Real 2 km World, Live Browser QA & Honest Reconciliation (2026-11-27)
 - **Real 2 km OSM fetch succeeded** (previous attempts failed): added working Overpass mirrors
   (`overpass.osm.ch`, `lz4.overpass-api.de`) and a 120 s per-endpoint timeout to `scripts/fetch-osm.mjs`

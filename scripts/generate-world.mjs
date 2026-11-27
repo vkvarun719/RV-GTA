@@ -471,11 +471,11 @@ async function main() {
     outputs:        { glb: path.relative(ROOT, GLB_OUT) },
     statistics:     { buildings: bldOk, roads: roadOk, heightSources: heightStats },
     limitations: [
-      'Building facades are extruded footprint polygons — no windows/doors in this pass.',
-      'Roads are flat ribbons — no intersections, markings or kerbs.',
+      'Building facades are extruded footprint polygons with a 0.45 m roof parapet; no per-building windows/doors (OSM has no architecture).',
+      'Roads are ribbons with 0.45 m raised kerbs and dashed centre lane markings on major roads; intersections are implied by overlapping ribbons, not modelled explicitly.',
       'No terrain elevation — everything is on Y=0 ground plane.',
-      'No textures in this pass — materials are solid colours.',
-      `OSM data covers ${meta.radiusMeters} m${meta.radiusMeters < 2000 ? ' (not full 2 km — re-run fetch-osm with network access)' : ''}.`,
+      'Materials are solid PBR colours (asphalt/bump textures are applied at runtime by WorldAssetLoader).',
+      `OSM data covers ${meta.radiusMeters} m${meta.radiusMeters < 2000 ? ' (not full 2 km — re-run fetch-osm with network access)' : ' (full 2 km radius)'}.`,
     ],
   };
   await fs.writeFile(META_OUT, JSON.stringify(metaOut, null, 2), 'utf8');

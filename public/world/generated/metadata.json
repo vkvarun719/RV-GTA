@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-27T03:56:31.403Z",
+  "generatedAt": "2026-11-27T04:43:53.578Z",
   "generator": "generate-world.mjs (Node.js, hand-rolled GLB writer, no OSM2World or Blender)",
   "origin": {
     "lat": 12.8729154,
@@ -22,10 +22,35 @@
     }
   },
   "limitations": [
-    "Building facades are extruded footprint polygons — no windows/doors in this pass.",
-    "Roads are flat ribbons — no intersections, markings or kerbs.",
+    "Building facades are extruded footprint polygons with a 0.45 m roof parapet. Per-building InstancedMesh window modules, doors and balconies are added at runtime by CityBuilder.ts for buildings within 220 m LOD radius; distant buildings remain unfenestrated extrusions.",
+    "Roads are ribbons with 0.45 m raised kerbs and dashed centre lane markings on major roads; intersections are implied by overlapping ribbons, not modelled explicitly.",
     "No terrain elevation — everything is on Y=0 ground plane.",
-    "No textures in this pass — materials are solid colours.",
-    "OSM data covers 2000 m."
-  ]
+    "Materials are solid PBR colours (asphalt/bump textures are applied at runtime by WorldAssetLoader).",
+    "OSM data covers 2000 m (full 2 km radius)."
+  ],
+  "runtimeFeatures": {
+    "player": {
+      "model": "public/models/player_xbot.glb (Mixamo rig, 2.9 MB)",
+      "type": "skinned skeletal character, procedural fallback rig if load fails",
+      "realClips": ["idle", "walk", "run"],
+      "proceduralFallbacks": ["sprint (run at higher speed)", "jump", "land", "turn", "vehicle enter", "vehicle exit"],
+      "backpack": "procedural box mesh parented to model root"
+    },
+    "campus": {
+      "handcrafted": ["main gate", "academic block (7-floor)", "central library entrance", "auditorium plaza", "quadrangle", "canteen", "sports zone", "student parking"],
+      "instancedWindows": "added to academic block East & West facades"
+    },
+    "city": {
+      "facadeComponents": ["window modules", "doors", "balconies"],
+      "instancing": "one InstancedMesh per colour palette per component type",
+      "lodRadiusM": 220
+    },
+    "environment": {
+      "trees": "instanced campus + outer-world scatter",
+      "grass": "instanced cones",
+      "streetlights": "instanced poles + arms + bulbs",
+      "streetFurniture": "trash cans + bollards",
+      "shadows": "2048x2048 PCFSoftShadowMap (high quality)"
+    }
+  }
 }

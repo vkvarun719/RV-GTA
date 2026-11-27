@@ -307,6 +307,40 @@ function buildAcademicBlock(
     bldg.add(finW);
   }
 
+  // Instanced window modules on East & West facades (real window quads, not just texture)
+  {
+    const windowGeo = new THREE.PlaneGeometry(1.15, 1.35);
+    const windowMat = new THREE.MeshStandardMaterial({
+      color: 0x1e3a4c,
+      roughness: 0.15,
+      metalness: 0.65,
+      emissive: 0x2d4a63,
+      emissiveIntensity: 0.12,
+    });
+    const windowFrames: Array<{ x: number; y: number; z: number; rotY: number }> = [];
+    const windowPerFloor = 8;
+    const floorStart = 1.0;
+    for (let f = 0; f < floors - 1; f++) {
+      const fy = floorStart + f * floorHeight + floorHeight * 0.5;
+      for (let w = 0; w < windowPerFloor; w++) {
+        const zOff = -length * 0.42 + (w / Math.max(1, windowPerFloor - 1)) * length * 0.84;
+        windowFrames.push({ x: width * 0.5 + 0.02, y: fy, z: zOff, rotY: 0 });
+        windowFrames.push({ x: -width * 0.5 - 0.02, y: fy, z: zOff, rotY: Math.PI });
+      }
+    }
+    const windowMesh = new THREE.InstancedMesh(windowGeo, windowMat, windowFrames.length);
+    windowMesh.castShadow = true;
+    windowMesh.receiveShadow = true;
+    const dummy = new THREE.Object3D();
+    windowFrames.forEach((w, i) => {
+      dummy.position.set(w.x, w.y, w.z);
+      dummy.rotation.set(0, w.rotY, 0);
+      dummy.updateMatrix();
+      windowMesh.setMatrixAt(i, dummy.matrix);
+    });
+    bldg.add(windowMesh);
+  }
+
   // Stepped North & South wing projections (matching real OSM indented footprint)
   const wingGeo = new THREE.BoxGeometry(width + 2.4, totalH - 1.5, 16);
   const northWing = new THREE.Mesh(wingGeo, creamMat);
@@ -457,6 +491,348 @@ function buildAcademicBlock(
   const px = center.x + (porchBaseX - 0.5) * cos + porchZ * sin;
   const pz = center.z - (porchBaseX - 0.5) * sin + porchZ * cos;
   physics.addStaticBox(px, 0.45, pz, 3.6, 0.45, 7.0, rotationY);
+
+  // ===== DETAILED CAMPUS ENTRANCE (photograph-accurate reconstruction) =====
+  // Positioned at the academic block East facade entrance, in local coordinates
+  // relative to the bldg group. Preserves all existing geometry; adds:
+  // glass canopy, terracotta columns, granite facade, glass doors, staircase,
+  // ceiling soffit, raised garden beds.
+  buildDetailedEntrance(bldg, physics, totalH, porchBaseX, porchZ);
+}
+
+// ===== DETAILED CAMPUS ENTRANCE (photograph-accurate reconstruction) =====
+// Recreates the RVITM campus entrance with glass canopy, terracotta columns,
+// granite facade, glass doors, grand staircase, ceiling soffit, and landscaping.
+// All coordinates are local to the academic block bldg group.
+function buildDetailedEntrance(
+  parent: THREE.Group,
+  physics: PhysicsWorld,
+  totalH: number,
+  porchBaseX: number,
+  porchZ: number
+): void {
+  const entrance = new THREE.Group();
+
+  // Shared materials
+  const graniteMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.55, metalness: 0.25 });
+  const stoneStripMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.7, metalness: 0.1 });
+  const terracottaMat = new THREE.MeshStandardMaterial({ color: 0x8f2d26, roughness: 0.85, metalness: 0.05 });
+  const glassPanelMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0.05,
+    roughness: 0.02,
+    transparent: true,
+    opacity: 0.78,
+    transmission: 0.85,
+    thickness: 0.4,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.1,
+    side: THREE.DoubleSide,
+  });
+  const metalFrameMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.75, roughness: 0.25 });
+  const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x2d1b10, roughness: 0.9 });
+  const whiteBeamMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.5 });
+  const stairMat = new THREE.MeshStandardMaterial({ color: 0x8e8e8e, roughness: 0.8, metalness: 0.1 });
+  const stairRiserMat = new THREE.MeshStandardMaterial({ color: 0x6e6e6e, roughness: 0.9 });
+  const handrailMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.8, roughness: 0.2 });
+  const gardenBedMat = new THREE.MeshStandardMaterial({ color: 0x8f2d26, roughness: 0.85 });
+  const edgeMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.6 });
+  const bushMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.95 });
+  const interiorLightMat = new THREE.MeshStandardMaterial({ color: 0xfff3e0, emissive: 0xfff3e0, emissiveIntensity: 0.8 });
+
+  // Entrance local position (East facade, toward main gate)
+  const entX = porchBaseX + 1.0;
+  const entZ = porchZ;
+  const canopyY = totalH + 1.5;
+
+  // 1. GLASS CANOPY with rectangular metal grid framework
+  const canopyWidth = 13;
+  const canopyDepth = 15;
+
+  // Canopy roof glass panel
+  const roofGlass = new THREE.Mesh(new THREE.PlaneGeometry(canopyWidth, canopyDepth), glassPanelMat);
+  roofGlass.position.set(entX, canopyY, entZ);
+  roofGlass.rotation.x = -Math.PI / 2;
+  roofGlass.castShadow = true;
+  roofGlass.receiveShadow = true;
+  entrance.add(roofGlass);
+
+  // Metal grid beams on canopy roof (cross beams along depth)
+  for (let i = 0; i <= 6; i++) {
+    const beamX = -canopyWidth * 0.5 + i * (canopyWidth / 6);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, canopyDepth), metalFrameMat);
+    beam.position.set(entX + beamX, canopyY + 0.04, entZ);
+    beam.rotation.x = -Math.PI / 2;
+    beam.castShadow = true;
+    entrance.add(beam);
+  }
+  // Metal grid beams on canopy roof (cross beams along width)
+  for (let i = 0; i <= 4; i++) {
+    const beamZ = -canopyDepth * 0.5 + i * (canopyDepth / 4);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(canopyWidth, 0.08, 0.12), metalFrameMat);
+    beam.position.set(entX, canopyY + 0.04, entZ + beamZ);
+    beam.rotation.x = -Math.PI / 2;
+    beam.castShadow = true;
+    entrance.add(beam);
+  }
+
+  // Front face glass panel of canopy
+  const frontPanel = new THREE.Mesh(new THREE.PlaneGeometry(canopyWidth, 2.2), glassPanelMat);
+  frontPanel.position.set(entX, canopyY + 1.1, entZ - canopyDepth * 0.5 + 0.05);
+  frontPanel.rotation.y = Math.PI;
+  entrance.add(frontPanel);
+
+  // 2. TERRACOTTA COLUMNS (2 large cylindrical columns with bases)
+  const columnRadius = 0.8;
+  const columnHeight = totalH * 0.5;
+  const columnBaseRadius = 1.25;
+  const columnBaseHeight = 0.6;
+  const columnOffsetZ = [-5, 5];
+
+  for (const cz of columnOffsetZ) {
+    // Column base plinth
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(columnBaseRadius, columnBaseRadius * 1.3, columnBaseHeight, 16), terracottaMat);
+    base.position.set(entX, columnBaseHeight * 0.5, entZ + cz);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    entrance.add(base);
+
+    // Main column shaft
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(columnRadius, columnRadius, columnHeight, 16), terracottaMat);
+    shaft.position.set(entX, columnBaseHeight + columnHeight * 0.5, entZ + cz);
+    shaft.castShadow = true;
+    shaft.receiveShadow = true;
+    entrance.add(shaft);
+
+    // Column capital
+    const capital = new THREE.Mesh(new THREE.CylinderGeometry(columnRadius * 1.35, columnRadius * 1.35, 0.4, 16), terracottaMat);
+    capital.position.set(entX, columnBaseHeight + columnHeight, entZ + cz);
+    capital.castShadow = true;
+    entrance.add(capital);
+  }
+
+  // 3. BUILDING FACADE - dark charcoal granite with horizontal light-grey stone strips
+  const facadeWidth = 15;
+  const facadeHeight = 13;
+  const facadeDepth = 0.7;
+
+  const facadeWall = new THREE.Mesh(new THREE.BoxGeometry(facadeWidth, facadeHeight, facadeDepth), graniteMat);
+  facadeWall.position.set(entX + facadeDepth * 0.5, facadeHeight * 0.5 - 1.2, entZ);
+  facadeWall.castShadow = true;
+  facadeWall.receiveShadow = true;
+  entrance.add(facadeWall);
+
+  // Horizontal light-grey stone strips
+  for (let i = 0; i < 5; i++) {
+    const stripY = 1.5 + i * 2.4;
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(facadeWidth + 0.4, 0.4, facadeDepth + 0.02), stoneStripMat);
+    strip.position.set(entX + facadeDepth * 0.5, stripY, entZ);
+    entrance.add(strip);
+  }
+
+  // Narrow vertical window arrangements on facade
+  const narrowWindowMat = new THREE.MeshStandardMaterial({ color: 0x1e3a4c, roughness: 0.1, metalness: 0.85, emissive: 0x2d4a63, emissiveIntensity: 0.1 });
+  for (let i = 0; i < 4; i++) {
+    const winX = -facadeWidth * 0.3 + i * (facadeWidth * 0.2);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 3.8), narrowWindowMat);
+    win.position.set(entX + facadeDepth * 0.5 + winX * 0.05, 3.5 + i * 2.2, entZ);
+    entrance.add(win);
+  }
+
+  // Blue-tinted upper glass curtain wall band
+  const curtainWallMat = new THREE.MeshPhysicalMaterial({
+    color: 0x2d4a63,
+    metalness: 0.1,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.85,
+    transmission: 0.6,
+    thickness: 0.3,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.1,
+    side: THREE.DoubleSide,
+  });
+  const curtainWall = new THREE.Mesh(new THREE.PlaneGeometry(facadeWidth - 1, 2.5), curtainWallMat);
+  curtainWall.position.set(entX + facadeDepth * 0.5 + 0.01, facadeHeight - 1.5, entZ);
+  entrance.add(curtainWall);
+
+  // 4. ENTRANCE GLASS DOORS with metal frames and interior lighting
+  const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.15 });
+  const doorGlassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0.05,
+    roughness: 0.02,
+    transparent: true,
+    opacity: 0.82,
+    transmission: 0.9,
+    thickness: 0.06,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.1,
+    side: THREE.DoubleSide,
+  });
+
+  const doorWidth = 1.3;
+  const doorHeight = 3.1;
+
+  for (let side of [-1, 1]) {
+    // Door frame
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18, doorHeight, 0.18), doorFrameMat);
+    frame.position.set(entX + facadeDepth * 0.5 + 0.02, doorHeight * 0.5 + 0.6, entZ + side * (doorWidth * 0.7));
+    frame.castShadow = true;
+    entrance.add(frame);
+
+    // Door glass panel
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(doorWidth * 0.85, doorHeight), doorGlassMat);
+    door.position.set(entX + facadeDepth * 0.5 + 0.1, doorHeight * 0.5 + 0.6, entZ + side * (doorWidth * 0.7));
+    door.rotation.y = side * Math.PI / 6;
+    entrance.add(door);
+
+    // Door handle
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8), doorFrameMat);
+    handle.position.set(entX + facadeDepth * 0.5 + 0.18, doorHeight * 0.5 + 0.6 - 1.0, entZ + side * (doorWidth * 0.7));
+    handle.rotation.z = Math.PI / 2;
+    entrance.add(handle);
+  }
+
+  // Interior lobby lighting visible through glass
+  const interiorLight = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), interiorLightMat);
+  interiorLight.position.set(entX + facadeDepth * 0.5 + 0.2, 3.0, entZ);
+  interiorLight.rotation.y = Math.PI;
+  entrance.add(interiorLight);
+
+  // Simple reception desk visible inside
+  const receptionMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.4, metalness: 0.3 });
+  const reception = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.1, 1.0), receptionMat);
+  reception.position.set(entX + facadeDepth * 0.5 + 0.5, 0.55, entZ + 1.5);
+  reception.castShadow = true;
+  reception.receiveShadow = true;
+  entrance.add(reception);
+  const receptionTop = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.4 }));
+  receptionTop.position.set(entX + facadeDepth * 0.5 + 0.5, 1.1, entZ + 1.5);
+  entrance.add(receptionTop);
+
+  // 5. STAIRCASE - wide grey stone staircase with metal handrails
+  const stairWidth = 11;
+  const stairDepth = 15;
+  const numSteps = 9;
+  const stepHeight = 0.17;
+  const stepDepth = 1.4;
+
+  for (let s = 0; s < numSteps; s++) {
+    const stepY = s * stepHeight;
+    const stepZ = entZ - stairDepth * 0.5 + s * stepDepth + stepDepth * 0.5;
+
+    const tread = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, stepHeight * 0.3, stepDepth), stairMat);
+    tread.position.set(entX, stepY, stepZ);
+    tread.castShadow = true;
+    tread.receiveShadow = true;
+    entrance.add(tread);
+
+    if (s < numSteps - 1) {
+      const riser = new THREE.Mesh(new THREE.BoxGeometry(stairWidth, stepHeight * 0.7, stepDepth * 0.9), stairRiserMat);
+      riser.position.set(entX, stepY + stepHeight * 0.5, stepZ - stepDepth * 0.05);
+      entrance.add(riser);
+    }
+  }
+
+  // Staircase physics collider (walkable)
+  const stairTotalH = (numSteps - 1) * stepHeight + stepHeight * 0.3;
+  physics.addStaticBox(
+    entX + facadeDepth * 0.5,
+    stairTotalH * 0.5,
+    entZ,
+    stairWidth * 0.5 + 0.2,
+    stairTotalH * 0.5,
+    stairDepth * 0.5 + 0.2,
+    0
+  );
+
+  // Metal handrails on both sides of staircase
+  for (let side of [-1, 1]) {
+    // Vertical posts
+    for (let p = 0; p <= 5; p++) {
+      const postZ = entZ - stairDepth * 0.5 + p * (stairDepth / 5);
+      const postH = 0.9 + (p / 5) * 0.5; // Taller toward top
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, postH, 8), handrailMat);
+      post.position.set(entX + side * (stairWidth * 0.5 + 0.12), postH * 0.5, postZ);
+      entrance.add(post);
+    }
+    // Handrail bar
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, stairDepth, 8), handrailMat);
+    rail.position.set(entX + side * (stairWidth * 0.5 + 0.12), 1.1, entZ);
+    rail.rotation.z = Math.PI / 2;
+    entrance.add(rail);
+  }
+
+  // 6. CEILING - dark wooden soffit panels, white structural beams, recessed lights
+  const soffitWidth = 17;
+  const soffitDepth = 17;
+
+  const soffitPanel = new THREE.Mesh(new THREE.PlaneGeometry(soffitWidth, soffitDepth), darkWoodMat);
+  soffitPanel.position.set(entX, canopyY + 2.5, entZ);
+  soffitPanel.rotation.x = -Math.PI / 2;
+  soffitPanel.receiveShadow = true;
+  entrance.add(soffitPanel);
+
+  // White structural beams running across soffit
+  for (let i = 0; i <= 5; i++) {
+    const beamZ = -soffitDepth * 0.5 + i * (soffitDepth / 5);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(soffitWidth, 0.18, 0.4), whiteBeamMat);
+    beam.position.set(entX, canopyY + 2.5 + 0.3, entZ + beamZ);
+    beam.rotation.x = -Math.PI / 2;
+    entrance.add(beam);
+  }
+
+  // Recessed ceiling lights
+  for (let i = 0; i < 8; i++) {
+    const lightX = -7 + i * 2;
+    const lightZ = entZ - 6 + (i % 2) * 5;
+    const light = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 8), interiorLightMat);
+    light.position.set(entX + lightX, canopyY + 2.5 + 0.31, lightZ);
+    light.rotation.x = Math.PI / 2;
+    entrance.add(light);
+  }
+
+  // 7. LANDSCAPING - raised garden beds with tropical shrubs on both sides
+  const bedDepth = 13;
+  const bedHeight = 0.5;
+
+  const dummy = new THREE.Object3D();
+  const bushGeo = new THREE.SphereGeometry(0.55, 8, 6);
+
+  for (let side of [-1, 1]) {
+    // Raised garden bed
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(bedHeight, bedHeight, bedDepth), gardenBedMat);
+    bed.position.set(entX + side * (stairWidth * 0.5 + bedHeight * 0.5 + 1.2), bedHeight * 0.5, entZ);
+    bed.castShadow = true;
+    bed.receiveShadow = true;
+    entrance.add(bed);
+
+    // Stone edging around garden bed
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(bedHeight + 0.05, bedHeight + 0.05, bedDepth + 0.1), edgeMat);
+    edge.position.set(entX + side * (stairWidth * 0.5 + bedHeight * 0.5 + 1.2), bedHeight * 0.5, entZ);
+    entrance.add(edge);
+
+    // Tropical shrubs (instanced)
+    const bushCount = 6;
+    const bushes = new THREE.InstancedMesh(bushGeo, bushMat, bushCount);
+    bushes.castShadow = true;
+    bushes.receiveShadow = true;
+
+    for (let i = 0; i < bushCount; i++) {
+      const bx = entX + side * (stairWidth * 0.5 + bedHeight * 0.5 + 1.2 + 0.6 + (i % 3) * 1.6);
+      const bz = entZ - bedDepth * 0.5 + 1 + Math.floor(i / 3) * 4.5;
+      const scale = 0.75 + Math.sin(i) * 0.25;
+      dummy.position.set(bx, bedHeight + 0.5, bz);
+      dummy.scale.set(scale, scale, scale);
+      dummy.rotation.set(0, i * 1.3, 0);
+      dummy.updateMatrix();
+      bushes.setMatrixAt(i, dummy.matrix);
+    }
+    entrance.add(bushes);
+  }
+
+  parent.add(entrance);
 }
 
 function buildCourtyard(

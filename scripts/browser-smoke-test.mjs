@@ -291,6 +291,110 @@ async function main() {
     } catch {}
     ok('exit vehicle (F)', exited, `inVehicle=${!exited}`);
 
+    // ── Skinned character check ─────────────────────────────────────────────
+    let skinned = false;
+    try {
+      await page.waitForFunction(() => window.__nammaPlayer.usingSkinnedModel === true, { timeout: 15000 });
+      skinned = true;
+    } catch {}
+    ok('skinned student GLB active', skinned, `usingSkinnedModel=${skinned}`);
+
+    // ── Landmark / character screenshots ────────────────────────────────────
+    const tp = async (x, z, y = 1.2) => {
+      await page.evaluate(
+        ([px, py, pz]) => {
+          window.__nammaUnfreezeCam();
+          window.__nammaPlayer.teleport(px, py, pz);
+        },
+        [x, y, z]
+      );
+      await sleep(2200);
+    };
+    const shot = (n) => page.screenshot({ path: path.join(SHOT_DIR, n) });
+
+    await tp(72.5, -17.5);
+    await shot('04-main-gate.png');
+    await tp(-2.7, 29.6);
+    await shot('05-academic-block.png');
+    await tp(15.5, 16.5);
+    await shot('06-library.png');
+    await tp(15.0, -12.5);
+    await shot('07-auditorium.png');
+    await tp(0, 14);
+    await shot('08-quadrangle.png');
+    await tp(320, 320);
+    await shot('09-city-street.png');
+
+    // ── Phase 2F: Detailed campus entrance screenshots ────────────────────────
+    // Entrance world position ≈ (18.7, 0, -6.3), on academic block East facade.
+    // Straight-on entrance view.
+    await page.evaluate(() => {
+      window.__nammaSetCam(18.7, 2.5, -16, 18.7, 3, -6.3);
+    });
+    await sleep(800);
+    await shot('12-entrance-straight.png');
+
+    // Low-angle view showing the glass canopy.
+    await page.evaluate(() => {
+      window.__nammaSetCam(18.7, 0.6, -10, 18.7, 14, -6.3);
+    });
+    await sleep(800);
+    await shot('13-entrance-canopy-low.png');
+
+    // Side view showing columns and facade.
+    await page.evaluate(() => {
+      window.__nammaSetCam(30, 2.5, -6.3, 18.7, 3, -6.3);
+    });
+    await sleep(800);
+    await shot('14-entrance-side-columns.png');
+
+    // Close-up of staircase and handrails.
+    await page.evaluate(() => {
+      window.__nammaSetCam(24, 1.2, -12, 18.7, 1, -6.3);
+    });
+    await sleep(800);
+    await shot('15-entrance-stairs.png');
+
+    // Interior view through glass doors.
+    await page.evaluate(() => {
+      window.__nammaSetCam(20.5, 2, -6.3, 19.5, 2, -6.3);
+    });
+    await sleep(800);
+    await shot('16-entrance-interior.png');
+
+    // Player approaching and entering the building.
+    await tp(18.7, -6.3);
+    await page.evaluate(() => {
+      const p = window.__nammaPlayer.getPosition();
+      window.__nammaSetCam(p.x - 3, p.y + 0.5, p.z - 4, p.x, p.y, p.z);
+    });
+    await sleep(800);
+    await shot('17-entrance-player-approach.png');
+    await page.evaluate(() => window.__nammaUnfreezeCam());
+
+    // Player close-up (free camera in front of the character).
+    await tp(72.5, -17.5);
+    await page.evaluate(() => {
+      const p = window.__nammaPlayer.getPosition();
+      window.__nammaSetCam(p.x + 2.4, p.y + 0.3, p.z + 2.4, p.x, p.y - 0.15, p.z);
+    });
+    await sleep(500);
+    await shot('10-player-closeup.png');
+    await page.evaluate(() => window.__nammaUnfreezeCam());
+
+    // Vehicle driving shot.
+    await page.evaluate(() => {
+      const p = window.__nammaPlayer.getPosition();
+      window.__nammaVehicles.spawnVehicle('auto', p.x + 2.5, p.z, 0);
+    });
+    await sleep(500);
+    await page.keyboard.press('KeyF');
+    await sleep(700);
+    await page.keyboard.down('KeyW');
+    await sleep(1600);
+    await page.keyboard.up('KeyW');
+    await shot('11-vehicle-driving.png');
+
     // ── FPS measurement over ~3s via rAF counter ────────────────────────────
     const fps = await page.evaluate(
       () =>
@@ -345,6 +449,14 @@ async function main() {
         '01-spawn-idle.png',
         '02-far-corner.png',
         '03-campus-return.png',
+        '04-main-gate.png',
+        '05-academic-block.png',
+        '06-library.png',
+        '07-auditorium.png',
+        '08-quadrangle.png',
+        '09-city-street.png',
+        '10-player-closeup.png',
+        '11-vehicle-driving.png',
       ].map((f) => `- qa-screenshots/${f}`),
       '',
       '> NOTE: This automated pass verifies boot, WebGL, world streaming, collider',

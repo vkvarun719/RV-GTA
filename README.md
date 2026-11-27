@@ -70,6 +70,21 @@ npm run preview   # http://localhost:4173
   Recommended optimization: serve a roads-only minimap asset (not done, to avoid regressions).
 
 ## Deliverables
-`NAMMA_RVITM_PHASE_2D.zip`, `NAMMA_RVITM_PHASE_2E_VISUAL_REALISM.zip`, `BUILD_STATUS.md`,
+`NAMMA_RVITM_PHASE_2D.zip`, `NAMMA_RVITM_PHASE_2E_VISUAL_REALISM.zip`, `NAMMA_RVITM_PHASE_2E_FINAL.zip`, `NAMMA_RVITM_PHASE_2F.zip`, `BUILD_STATUS.md`,
 `FINAL_GAME_QA_REPORT.md`, `VISUAL_QA_REPORT.md`, `CHANGELOG.md`, `ASSET_LICENSES.md`,
 `BROWSER_SMOKE_REPORT.md`.
+
+## Honest Feature Status (Phase 2E Final)
+
+- **Protagonist**: rigged skinned student (`public/models/player_xbot.glb`, Mixamo skeleton) with real `idle`/`walk`/`run` clips.
+  `sprint` reuses run at higher speed. `jump`/`land`/`turn`/vehicle states use whole-body procedural fallbacks (clearly identified).
+  `player.glb` (Vanguard) is unused. Original procedural rig retained as load-failure fallback only.
+- **City buildings**: extruded footprints with InstancedMesh window modules, doors and balconies added at runtime
+  within 220 m LOD radius (`CityBuilder.ts`). Distant buildings remain unfenestrated.
+- **Campus**: handcrafted main gate, 7-floor academic block (now with instanced windows), central library, auditorium,
+  quadrangle, canteen, sports zone — all preserved and enhanced. **Phase 2F**: detailed entrance reconstructed at academic
+  block East facade — glass canopy with metal grid, 2 terracotta columns, charcoal granite facade with light-grey strips,
+  double glass doors with interior light and reception desk, stone staircase with handrails, dark wood soffit with white
+  beams and recessed lights, raised garden beds with instanced tropical shrubs.
+- **Friends**: 7 distinct students preserved. **Vehicles**: 5 types. **Missions**: 9 story/side + 4 gigs.
+- **Hardware FPS**: not measured (headless software SwiftShader ~4 fps is not representative).

@@ -8,9 +8,11 @@
 
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PLAYER_SPAWN } from '../data/campus-layout';
 import type { PhysicsWorld } from '../systems/PhysicsWorld';
 import type { InputManager } from '../systems/InputManager';
+import { AnimationController } from '../animation/AnimationController';
 import type { AnimState } from '../animation/AnimationController';
 
 export interface GroundedTransitionResult {
@@ -71,6 +73,13 @@ export class PlayerController {
   private modelGroup = new THREE.Group();
   private rig!: StudentRig;
 
+  // Real skeletal character (Xbot, Mixamo rig) with real idle/walk/run clips.
+  // Procedural rig above is the load-failure fallback and is hidden once the
+  // skinned model is ready. States without a real clip (Sprint/Jump/Land/Turn/
+  // VehicleEnter/VehicleExit) use whole-body procedural motion + the idle clip.
+  private anim: AnimationController | null = null;
+  public usingSkinnedModel = false;
+
   private jumpCooldown = 0;
   private stepTimer = 0;
   private wasGrounded = true;
@@ -88,6 +97,94 @@ export class PlayerController {
     this.modelGroup.add(this.rig.root);
     this.createPhysicsBody();
     scene.add(this.mesh);
+    this.loadSkinnedStudent();
+  }
+
+  /**
+   * Load the free, rigged Xbot character (Mixamo skeleton, real idle/walk/run
+   * clips) and drive it through AnimationController. Falls back to the
+   * procedural student rig if the asset fails to load. Sprint reuses the run
+   * clip at a higher time scale; Jump/Land/Turn/Vehicle states have no real
+   * clip and use whole-body procedural motion (clearly a fallback, not a clip).
+   */
+  private loadSkinnedStudent(): void {
+    new GLTFLoader().load(
+      '/models/player_xbot.glb',
+      (gltf) => {
+        const model = gltf.scene;
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xd2996c, roughness: 0.75, metalness: 0 });
+        const hoodieMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.72, metalness: 0.02 });
+        const jeansMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.88, metalness: 0 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0 });
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.88, metalness: 0 });
+
+        // Hide the skeleton-joint visualization mesh; keep only Beta_Surface.
+        model.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          m.castShadow = true;
+          m.receiveShadow = true;
+          if (m.name.includes('Joint') || m.name.includes('Armature')) {
+            m.visible = false;
+            return;
+          }
+          // Per-region materials on the skinned surface mesh by vertical extent.
+          const box = new THREE.Box3().setFromObject(m);
+          const cy = (box.min.y + box.max.y) / 2;
+          const baseMat = Array.isArray(m.material) ? m.material[0] : m.material;
+          const mat = (baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial()) as THREE.MeshStandardMaterial;
+          m.material = mat;
+          if (cy > 1.35) {
+            mat.color.copy(skinMat.color);
+            mat.roughness = skinMat.roughness;
+            mat.metalness = skinMat.metalness;
+          } else if (cy > 0.55) {
+            mat.color.copy(hoodieMat.color);
+            mat.roughness = hoodieMat.roughness;
+            mat.metalness = hoodieMat.metalness;
+          } else if (cy > 0.05) {
+            mat.color.copy(jeansMat.color);
+            mat.roughness = jeansMat.roughness;
+            mat.metalness = jeansMat.metalness;
+          } else {
+            mat.color.copy(shoeMat.color);
+            mat.roughness = shoeMat.roughness;
+            mat.metalness = shoeMat.metalness;
+          }
+          m.material = mat;
+        });
+
+        // Hair overlay on the head bone for visual detail.
+        const hair = new THREE.Mesh(
+          new THREE.SphereGeometry(0.17, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6),
+          hairMat
+        );
+        hair.position.set(0, 0.16, -0.02);
+        hair.castShadow = true;
+        const headBone = model.getObjectByName('mixamorig:Head');
+        if (headBone) headBone.add(hair);
+        else model.add(hair);
+
+        // Student backpack parented to the model root (follows body transform).
+        const pack = new THREE.Mesh(
+          new THREE.BoxGeometry(0.34, 0.42, 0.18),
+          new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 })
+        );
+        pack.position.set(0, 1.18, -0.20);
+        pack.castShadow = true;
+        model.add(pack);
+
+        this.modelGroup.add(model);
+        this.rig.root.visible = false;
+        this.anim = new AnimationController(model);
+        this.anim.registerClips(gltf.animations);
+        this.usingSkinnedModel = true;
+      },
+      undefined,
+      (err) => {
+        console.warn('[PlayerController] Xbot load failed; using procedural student rig.', err);
+      }
+    );
   }
 
   private buildCollegeStudentModel(): StudentRig {
@@ -302,7 +399,21 @@ export class PlayerController {
     // Update wasGrounded AFTER all state-edge checks
     this.wasGrounded = this.isGrounded;
 
-    this.animateStudentRig(dt, horizSpeed, nextVy);
+    if (this.usingSkinnedModel && this.anim) {
+      // Map to a real clip where one exists; Sprint reuses Run (time-scaled).
+      let clipState: AnimState = this.currentAnim;
+      if (clipState === 'Sprint') clipState = 'Run';
+      if (clipState !== 'Idle' && clipState !== 'Walk' && clipState !== 'Run') {
+        // No real clip for Jump/Land/Turn/Vehicle* → hold Idle clip; the
+        // whole-body procedural squash/lean/pitch below conveys the action.
+        clipState = 'Idle';
+      }
+      this.anim.transition(clipState);
+      this.anim.syncSpeed(horizSpeed * (this.currentAnim === 'Sprint' ? 1.35 : 1));
+      this.anim.update(dt);
+    } else {
+      this.animateStudentRig(dt, horizSpeed, nextVy);
+    }
 
     this.landingSquash *= Math.max(0, 1 - dt * 12);
     const targetLean = Math.max(-0.18, Math.min(0.18, -yawDiff * 0.25));

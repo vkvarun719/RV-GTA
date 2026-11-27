@@ -438,11 +438,14 @@ function buildHangoutSpots(
 function buildSurroundingBuildings(parent: THREE.Group, physics: PhysicsWorld): void {
   const palette = [0xe7dcc8, 0xd8c3a5, 0xcbd5e1, 0xd9c2b2, 0xc7d6c5];
   const buckets: THREE.BufferGeometry[][] = palette.map(() => []);
+  const windowBuckets: number[][] = palette.map(() => []);
+  const doorBuckets: number[][] = palette.map(() => []);
+  const balconyBuckets: number[][] = palette.map(() => []);
+  const LOD_RADIUS = 220;
 
   for (const b of osmData.buildings as BuildingFootprint[]) {
     if (b.points.length < 3) continue;
 
-    // Bounding center & span
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const [x, z] of b.points) {
       if (x < minX) minX = x;
@@ -453,7 +456,6 @@ function buildSurroundingBuildings(parent: THREE.Group, physics: PhysicsWorld): 
     const cx = (minX + maxX) * 0.5;
     const cz = (minZ + maxZ) * 0.5;
 
-    // Skip anything overlapping RVITM campus or our custom roadside hangout strip
     if (cx > -36 && cx < 56 && cz > -62 && cz < 92) continue;
     if (cx > 70 && cx < 102 && cz > -36 && cz < 28) continue;
 
@@ -475,7 +477,79 @@ function buildSurroundingBuildings(parent: THREE.Group, physics: PhysicsWorld): 
     const bucketIdx = Math.abs(b.id) % palette.length;
     buckets[bucketIdx].push(extrude);
 
-    // Add physics box colliders for close JP Nagar houses within playable drive radius
+    // Physics colliders for close JP Nagar houses within playable drive radius
+    const dist = Math.hypot(cx, cz);
+    if (dist < 175) {
+      const hx = Math.max(1.5, (maxX - minX) * 0.5);
+      const hz = Math.max(1.5, (maxZ - minZ) * 0.5);
+      physics.addStaticBox(cx, height * 0.5, cz, hx, height * 0.5, hz);
+    }
+
+    // Facade components only within LOD radius (skip distant buildings to cap draw cost)
+    if (dist > LOD_RADIUS) continue;
+
+    const floors = Math.max(1, Math.round(height / 3.4));
+    const fw = maxX - minX;
+    const fz = maxZ - minZ;
+    const halfW = fw * 0.5;
+    const halfZ = fz * 0.5;
+
+    // Window module dimensions
+    const floorStep = 3.4;
+    const firstFloorY = 1.0;
+
+    // Add windows on all four facades at each floor
+    for (let f = 0; f < floors - 1; f++) {
+      const fy = firstFloorY + f * floorStep + floorStep * 0.45;
+      const winCountX = Math.max(1, Math.floor(fw / 2.6));
+      const winCountZ = Math.max(1, Math.floor(fz / 2.6));
+      const stepX = fw / Math.max(winCountX + 1, 2);
+      const stepZ = fz / Math.max(winCountZ + 1, 2);
+
+      // East facade (+X local)
+      for (let w = 1; w <= winCountX; w++) {
+        const zz = minZ + stepZ * w;
+        windowBuckets[bucketIdx].push(minX + halfW - 0.02, fy, zz, 0);
+      }
+      // West facade (-X local)
+      for (let w = 1; w <= winCountX; w++) {
+        const zz = minZ + stepZ * w;
+        windowBuckets[bucketIdx].push(maxX - halfW + 0.02, fy, zz, Math.PI);
+      }
+      // South facade (+Z local)
+      for (let w = 1; w <= winCountZ; w++) {
+        const xx = minX + stepX * w;
+        windowBuckets[bucketIdx].push(xx, fy, minZ + halfZ - 0.02, Math.PI / 2);
+      }
+      // North facade (-Z local)
+      for (let w = 1; w <= winCountZ; w++) {
+        const xx = minX + stepX * w;
+        windowBuckets[bucketIdx].push(xx, fy, maxZ - halfZ + 0.02, -Math.PI / 2);
+      }
+
+      // Ground-floor door / shopfront (center of widest facade)
+      if (f === 0) {
+        if (fw >= fz) {
+          doorBuckets[bucketIdx].push(minX + halfW + 0.02, fy, cz, 0);
+          doorBuckets[bucketIdx].push(maxX - halfW - 0.02, fy, cz, Math.PI);
+        } else {
+          doorBuckets[bucketIdx].push(cx, fy, minZ + halfZ + 0.02, Math.PI / 2);
+          doorBuckets[bucketIdx].push(cx, fy, maxZ - halfZ - 0.02, -Math.PI / 2);
+        }
+      }
+
+      // Balconies on East & West facades for buildings 3+ stories
+      if (floors >= 3 && f > 0) {
+        const winCountX = Math.max(1, Math.floor(fw / 2.6));
+        const stepX = fw / Math.max(winCountX + 1, 2);
+        for (let w = 1; w <= winCountX; w += 2) {
+          const zz = minZ + stepX * w;
+          balconyBuckets[bucketIdx].push(minX + halfW + 0.02, fy, zz, 0);
+          balconyBuckets[bucketIdx].push(maxX - halfW - 0.02, fy, zz, Math.PI);
+        }
+      }
+    }
+
     if (Math.hypot(cx, cz) < 175) {
       const hx = Math.max(1.5, (maxX - minX) * 0.5);
       const hz = Math.max(1.5, (maxZ - minZ) * 0.5);
@@ -483,6 +557,7 @@ function buildSurroundingBuildings(parent: THREE.Group, physics: PhysicsWorld): 
     }
   }
 
+  // Create building meshes per palette
   buckets.forEach((geos, idx) => {
     if (geos.length === 0) return;
     const merged = mergeGeometries(geos, false);
@@ -493,8 +568,80 @@ function buildSurroundingBuildings(parent: THREE.Group, physics: PhysicsWorld): 
       flatShading: true,
     });
     const mesh = new THREE.Mesh(merged, mat);
-    mesh.castShadow = idx < 2; // Cast shadow from half the blocks to save shadow pass cost
+    mesh.castShadow = idx < 2;
     mesh.receiveShadow = true;
     parent.add(mesh);
+  });
+
+  // Instanced window modules per palette (single draw call per colour group)
+  const winGeo = new THREE.PlaneGeometry(1.1, 1.35);
+  const winMat = new THREE.MeshStandardMaterial({
+    color: 0x1e3a4c,
+    roughness: 0.15,
+    metalness: 0.65,
+    emissive: 0x2d4a63,
+    emissiveIntensity: 0.1,
+  });
+  const dummy = new THREE.Object3D();
+  windowBuckets.forEach((positions) => {
+    const count = positions.length / 4;
+    if (count === 0) return;
+    const inst = new THREE.InstancedMesh(winGeo, winMat, count);
+    inst.castShadow = true;
+    inst.receiveShadow = true;
+    for (let i = 0; i < count; i++) {
+      const o = i * 4;
+      dummy.position.set(positions[o], positions[o + 1], positions[o + 2]);
+      dummy.rotation.set(0, positions[o + 3], 0);
+      dummy.updateMatrix();
+      inst.setMatrixAt(i, dummy.matrix);
+    }
+    parent.add(inst);
+  });
+
+  // Instanced door modules per palette
+  const doorGeo = new THREE.PlaneGeometry(0.95, 2.0);
+  const doorMat = new THREE.MeshStandardMaterial({
+    color: 0x374151,
+    roughness: 0.55,
+    metalness: 0.3,
+  });
+  doorBuckets.forEach((positions) => {
+    const count = positions.length / 4;
+    if (count === 0) return;
+    const inst = new THREE.InstancedMesh(doorGeo, doorMat, count);
+    inst.castShadow = true;
+    inst.receiveShadow = true;
+    for (let i = 0; i < count; i++) {
+      const o = i * 4;
+      dummy.position.set(positions[o], positions[o + 1], positions[o + 2]);
+      dummy.rotation.set(0, positions[o + 3], 0);
+      dummy.updateMatrix();
+      inst.setMatrixAt(i, dummy.matrix);
+    }
+    parent.add(inst);
+  });
+
+  // Instanced balcony modules per palette
+  const balconyGeo = new THREE.BoxGeometry(0.08, 0.1, 1.4);
+  const balconyMat = new THREE.MeshStandardMaterial({
+    color: 0x4b5563,
+    roughness: 0.6,
+    metalness: 0.45,
+  });
+  balconyBuckets.forEach((positions) => {
+    const count = positions.length / 4;
+    if (count === 0) return;
+    const inst = new THREE.InstancedMesh(balconyGeo, balconyMat, count);
+    inst.castShadow = true;
+    inst.receiveShadow = true;
+    for (let i = 0; i < count; i++) {
+      const o = i * 4;
+      dummy.position.set(positions[o], positions[o + 1], positions[o + 2]);
+      dummy.rotation.set(0, positions[o + 3], 0);
+      dummy.updateMatrix();
+      inst.setMatrixAt(i, dummy.matrix);
+    }
+    parent.add(inst);
   });
 }

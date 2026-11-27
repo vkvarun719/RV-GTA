@@ -82,6 +82,17 @@ async function bootstrap(): Promise<void> {
   (window as unknown as Record<string, unknown>).__nammaPlayer = player;
   (window as unknown as Record<string, unknown>).__nammaVehicles = vehicleManager;
   (window as unknown as Record<string, unknown>).__nammaGraphics = graphics;
+  // Free-camera hook for reproducible QA screenshots (close-ups of landmarks).
+  (window as unknown as Record<string, unknown>).__nammaSetCam = (
+    px: number, py: number, pz: number, tx: number, ty: number, tz: number
+  ) => {
+    graphics.camera.position.set(px, py, pz);
+    graphics.camera.lookAt(tx, ty, tz);
+    (window as unknown as Record<string, boolean>).__nammaFreezeCam = true;
+  };
+  (window as unknown as Record<string, unknown>).__nammaUnfreezeCam = () => {
+    (window as unknown as Record<string, boolean>).__nammaFreezeCam = false;
+  };
   const hud = new HudOverlay(uiRoot);
   const photoMode = new PhotoMode(uiRoot, canvas, chaseCam, graphics.camera, hud);
   const clipRecorder = new ClipRecorder(canvas);
@@ -458,15 +469,17 @@ async function bootstrap(): Promise<void> {
       }
       hud.setPrompt(prompt);
 
-      chaseCam.update(
-        dt,
-        graphics.camera,
-        input,
-        physics,
-        activePos,
-        Boolean(activeVeh),
-        activeVeh?.yaw
-      );
+      if (!(window as unknown as Record<string, boolean>).__nammaFreezeCam) {
+        chaseCam.update(
+          dt,
+          graphics.camera,
+          input,
+          physics,
+          activePos,
+          Boolean(activeVeh),
+          activeVeh?.yaw
+        );
+      }
       graphics.updateShadowFollow(activePos.x, activePos.z);
       graphics.trackFrame(dt);
 
