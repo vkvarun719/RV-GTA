@@ -82,6 +82,62 @@ function extrudeBuilding(pts2d, heightM) {
     norm.push(nx,0,nz, nx,0,nz, nx,0,nz);
     pos.push(ax,0,az, bx,h,bz, ax,h,az);
     norm.push(nx,0,nz, nx,0,nz, nx,0,nz);
+
+    // Architectural roof parapet rim (+0.45 m lip)
+    const ph = h + 0.45;
+    pos.push(ax,h,az, bx,h,bz, bx,ph,bz);
+    norm.push(nx,0,nz, nx,0,nz, nx,0,nz);
+    pos.push(ax,h,az, bx,ph,bz, ax,ph,az);
+    norm.push(nx,0,nz, nx,0,nz, nx,0,nz);
+  }
+
+  return { pos, norm };
+}
+
+/** Extrude raised sidewalk kerbs and dashed lane markings for major roads. */
+function extrudeRoadDetails(pts, widthM, isMajor) {
+  const hw = widthM / 2;
+  const pos = [];
+  const norm = [];
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const ax = pts[i][0], az = pts[i][1];
+    const bx = pts[i + 1][0], bz = pts[i + 1][1];
+    const ex = bx - ax, ez = bz - az;
+    const len = Math.hypot(ex, ez) || 1;
+    const ux = ex / len, uz = ez / len;
+    const rx = uz, rz = -ux;
+
+    // Left & right kerbs (0.4 m wide, y = 0.05)
+    for (const side of [-1, 1]) {
+      const kIn = side * hw;
+      const kOut = side * (hw + 0.45);
+      const y = 0.05;
+      const a0x = ax + rx * kIn, a0z = az + rz * kIn;
+      const a1x = ax + rx * kOut, a1z = az + rz * kOut;
+      const b0x = bx + rx * kIn, b0z = bz + rz * kIn;
+      const b1x = bx + rx * kOut, b1z = bz + rz * kOut;
+      pos.push(a0x, y, a0z, a1x, y, a1z, b1x, y, b1z);
+      norm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+      pos.push(a0x, y, a0z, b1x, y, b1z, b0x, y, b0z);
+      norm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+    }
+
+    // Center dashed lane markings on major roads
+    if (isMajor && len > 4) {
+      const dashLen = 2.4;
+      const gapLen = 2.6;
+      const mw = 0.14;
+      for (let d = 0.5; d + dashLen < len; d += dashLen + gapLen) {
+        const sx = ax + ux * d, sz = az + uz * d;
+        const fx = ax + ux * (d + dashLen), fz = az + uz * (d + dashLen);
+        const y = 0.035;
+        pos.push(sx - rx * mw, y, sz - rz * mw, sx + rx * mw, y, sz + rz * mw, fx + rx * mw, y, fz + rz * mw);
+        norm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+        pos.push(sx - rx * mw, y, sz - rz * mw, fx + rx * mw, y, fz + rz * mw, fx - rx * mw, y, fz - rz * mw);
+        norm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+      }
+    }
   }
 
   return { pos, norm };
@@ -362,18 +418,27 @@ async function main() {
   }
   console.log(`Buildings: ${bldOk} added, ${bldSkip} skipped (bad geometry)`);
 
-  // Roads
+  // Roads + Kerbs & Lane Markings
   let roadOk = 0;
   for (const r of roads) {
     if (!r.points || r.points.length < 2) continue;
+    const width = r.width || 6;
     let geo;
-    try { geo = extrudeRoad(r.points, r.width || 6); } catch { continue; }
+    try { geo = extrudeRoad(r.points, width); } catch { continue; }
     if (geo.pos.length === 0) continue;
     const color = roadColor(r.highway);
     const colorKey = `roads_${color.join('_')}`;
     const e = accumulate(meshAccum, colorKey, geo);
     if (!e.color) e.color = color;
     e.name = colorKey;
+
+    const isMajor = ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'].includes(r.highway);
+    const det = extrudeRoadDetails(r.points, width, isMajor);
+    if (det.pos.length > 0) {
+      const detEntry = accumulate(meshAccum, 'roads_kerbs_markings', det);
+      if (!detEntry.color) detEntry.color = [0.78, 0.76, 0.72];
+      detEntry.name = 'roads_kerbs_markings';
+    }
     roadOk++;
   }
   console.log(`Roads: ${roadOk} segments added`);

@@ -147,8 +147,9 @@ export class FriendNpcManager {
   private time = 0;
 
   constructor(scene: THREE.Scene) {
-    for (const spec of FRIEND_SPECS) {
-      const group = this.buildCharacterMesh(spec.shirtColor, spec.pantsColor);
+    for (let i = 0; i < FRIEND_SPECS.length; i++) {
+      const spec = FRIEND_SPECS[i];
+      const group = this.buildCharacterMesh(spec.shirtColor, spec.pantsColor, i);
       group.position.set(spec.x, 0, spec.z);
       group.rotation.y = spec.yaw;
       scene.add(group);
@@ -161,44 +162,70 @@ export class FriendNpcManager {
     }
   }
 
-  private buildCharacterMesh(shirtColor: number, pantsColor: number): THREE.Group {
+  private buildCharacterMesh(shirtColor: number, pantsColor: number, idx = 0): THREE.Group {
     const g = new THREE.Group();
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xd2996c, roughness: 0.75 });
+    const skinTones = [0xd2996c, 0xc68652, 0xb87544, 0xdba97e];
+    const hairColors = [0x1c1917, 0x292524, 0x0f172a, 0x3f2318];
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinTones[idx % skinTones.length], roughness: 0.75 });
     const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.7 });
     const pantsMat = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.85 });
-    const hairMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.9 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: hairColors[idx % hairColors.length], roughness: 0.9 });
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
 
-    // Legs
-    const legGeo = new THREE.BoxGeometry(0.16, 0.75, 0.18);
+    // Legs + Sneakers
+    const legGeo = new THREE.BoxGeometry(0.16, 0.72, 0.18);
     const lLeg = new THREE.Mesh(legGeo, pantsMat);
-    lLeg.position.set(-0.1, 0.375, 0);
+    lLeg.position.set(-0.1, 0.4, 0);
     lLeg.castShadow = true;
     const rLeg = new THREE.Mesh(legGeo, pantsMat);
-    rLeg.position.set(0.1, 0.375, 0);
+    rLeg.position.set(0.1, 0.4, 0);
     rLeg.castShadow = true;
 
-    // Torso
+    const shoeGeo = new THREE.BoxGeometry(0.165, 0.09, 0.24);
+    const lShoe = new THREE.Mesh(shoeGeo, shoeMat);
+    lShoe.position.set(-0.1, 0.045, 0.03);
+    const rShoe = new THREE.Mesh(shoeGeo, shoeMat);
+    rShoe.position.set(0.1, 0.045, 0.03);
+
+    // Torso + optional student backpack on alternate friends
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.56, 0.24), shirtMat);
     torso.position.set(0, 1.03, 0);
     torso.castShadow = true;
 
-    // Arms
-    const armGeo = new THREE.BoxGeometry(0.13, 0.5, 0.14);
+    if (idx % 2 === 0) {
+      const pack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.36, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 })
+      );
+      pack.position.set(0, 1.03, -0.17);
+      pack.castShadow = true;
+      g.add(pack);
+    }
+
+    // Arms (named for dialogue gesture animation)
+    const armGeo = new THREE.BoxGeometry(0.12, 0.48, 0.13);
     const lArm = new THREE.Mesh(armGeo, shirtMat);
+    lArm.name = 'lArm';
     lArm.position.set(-0.29, 1.02, 0);
     lArm.castShadow = true;
     const rArm = new THREE.Mesh(armGeo, shirtMat);
+    rArm.name = 'rArm';
     rArm.position.set(0.29, 1.02, 0);
     rArm.castShadow = true;
 
-    // Head + Hair
+    // Head + Varied Hairstyles
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), skinMat);
     head.position.set(0, 1.48, 0);
     head.castShadow = true;
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.168, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.168, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.56), hairMat);
     hair.position.set(0, 1.5, 0);
+    if (idx % 3 === 1) {
+      // Hair bun silhouette
+      const bun = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), hairMat);
+      bun.position.set(0, 1.58, -0.13);
+      g.add(bun);
+    }
 
-    // Subtle floating friend marker ring at feet
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.45, 0.55, 20),
       new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.55 })
@@ -206,7 +233,7 @@ export class FriendNpcManager {
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.03;
 
-    g.add(lLeg, rLeg, torso, lArm, rArm, head, hair, ring);
+    g.add(lLeg, rLeg, lShoe, rShoe, torso, lArm, rArm, head, hair, ring);
     return g;
   }
 
@@ -215,11 +242,14 @@ export class FriendNpcManager {
     for (let i = 0; i < this.friends.length; i++) {
       const f = this.friends[i];
       const dist = Math.hypot(playerX - f.x, playerZ - f.z);
-      if (dist < 6.0) {
+      const rArm = f.group.getObjectByName('rArm');
+      if (dist < 5.5) {
         const targetYaw = Math.atan2(playerX - f.x, playerZ - f.z);
         f.group.rotation.y += (targetYaw - f.group.rotation.y) * Math.min(1, dt * 6);
+        if (rArm) rArm.rotation.x = -0.35 + Math.sin(this.time * 4.5 + i) * 0.2;
       } else {
         f.group.rotation.y = f.yaw + Math.sin(this.time * 0.9 + i) * 0.08;
+        if (rArm) rArm.rotation.x = Math.sin(this.time * 2.0 + i) * 0.05;
       }
     }
   }

@@ -8,6 +8,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ChunkBounds } from './WorldCoordinateSystem';
+import { createAsphaltTexture, createMicroNoiseBumpTexture } from './Textures';
+
+let sharedRoadTex: THREE.CanvasTexture | null = null;
+let sharedBumpTex: THREE.CanvasTexture | null = null;
 
 export interface WorldManifestChunk {
   file: string;
@@ -65,8 +69,26 @@ export class WorldAssetLoader {
             if ((obj as THREE.Mesh).isMesh) {
               const mesh = obj as THREE.Mesh;
               mesh.receiveShadow = true;
+              if (!sharedRoadTex) sharedRoadTex = createAsphaltTexture();
+              if (!sharedBumpTex) sharedBumpTex = createMicroNoiseBumpTexture(12, 12);
+
+              const mat = mesh.material as THREE.MeshStandardMaterial;
               if (mesh.name.startsWith('buildings')) {
                 mesh.castShadow = true;
+                if (mat && mat.isMeshStandardMaterial) {
+                  mat.bumpMap = sharedBumpTex;
+                  mat.bumpScale = 0.04;
+                  mat.roughness = 0.85;
+                  mat.needsUpdate = true;
+                }
+              } else if (mesh.name.startsWith('roads') && !mesh.name.includes('kerbs')) {
+                if (mat && mat.isMeshStandardMaterial) {
+                  mat.map = sharedRoadTex;
+                  mat.bumpMap = sharedBumpTex;
+                  mat.bumpScale = 0.03;
+                  mat.roughness = 0.88;
+                  mat.needsUpdate = true;
+                }
               }
             }
           });

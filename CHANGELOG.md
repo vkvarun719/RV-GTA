@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 2D / 2E — Visual Realism, Student Protagonist & Animation Bug Fixes (2026-11-27)
+- Fixed `wasGrounded` state-edge overwrite bug and `VehicleEnter`/`VehicleExit` transition bug in `src/player/PlayerController.ts`.
+- Replaced tactical `Soldier.glb` visual usage with an articulated college-student protagonist (hoodie, jeans, sneakers, backpack) with procedural locomotion across all 9 states.
+- Removed `T-Pose` from `Idle` fallback in `src/animation/AnimationController.ts` and added `scripts/test-animation-state.mjs` (`npm test` — `5/5` passed).
+- Upgraded `src/world/FriendNpcManager.ts` with varied skin tones, hair buns, sneakers, backpacks, and dialogue arm gestures.
+- Upgraded `scripts/generate-world.mjs` with building roof parapets, road kerbs, and major-road dashed lane markings (`world.glb`: `507.7 KB`, `7,002` tris), and applied shared runtime asphalt/bump textures in `src/world/WorldAssetLoader.ts`.
+- Added `VISUAL_QA_REPORT.md` and packaged `NAMMA_RVITM_PHASE_2D.zip` and `NAMMA_RVITM_PHASE_2E_VISUAL_REALISM.zip`.
+
 ## Phase 2C — Campus Landmarks, Friend NPCs, Collectibles & 8-Mission Storyline (2026-11-27)
 - Created `PROJECT_AUDIT.md`, `ASSET_LICENSES.md`, `CHANGELOG.md`, and `BUILD_STATUS.md`.
 - Added `src/world/FriendNpcManager.ts` with 7 distinct interactive RVITM student friend characters (`Arjun`, `Divya`, `Karthik`, `Sneha`, `Rohan`, `Ananya`, `Vikram`) with branch tags, `[E]` dialogue interactions, and look-at behavior.

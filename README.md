@@ -33,8 +33,9 @@ npm run validate-world
 npm run build-world
 ```
 
-To build for production:
+To run unit tests and build for production:
 ```bash
+npm test
 npm run build
 ```
 
