@@ -21,6 +21,7 @@ npm run dev
 - `WorldChunkManager.ts` — Streams chunks in/out based on player position (`loadRadiusM = 900`, `unloadRadiusM = 1300`) and disposes unloaded meshes.
 - `WorldCollisionManager.ts` — Registers and removes Rapier static `trimesh` colliders for streamed building geometry.
 - `WorldStreamer.ts` — Coordinates the single 4 km × 4 km terrain plane and chunk streaming in `src/main.ts`.
+- `FriendNpcManager.ts` & `CollectiblesManager.ts` — 7 interactive RVITM student friends (`[E]`) and 6 hidden Golden RVITM Badges (`₹100` each).
 
 To refresh OpenStreetMap roads and building footprints around RVITM (`src/data/campus-osm.json`), generate `public/world/generated/world.glb`, split into 500 m spatial chunks, and validate:
 ```bash

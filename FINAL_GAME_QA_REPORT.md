@@ -49,7 +49,9 @@
 
 ---
 
-## 3. Build & Automated Browser QA Results
+## 3. Earlier Baseline Build & Browser QA Results (2026-11-26 Pre-Phase 2A/2B/2C)
+
+> **Note**: The headless Chrome run below was executed on the **2026-11-26 baseline build** before `WorldStreamer`, spatial chunking, `FriendNpcManager`, and `CollectiblesManager` were added. See Sections 7 and 8 for the current build's verification status.
 
 - **TypeScript (`npx tsc --noEmit`)**: Passed with 0 errors.
 - **Production Build (`npm run build`)**: Passed (`vite build` in ~1.13s, `dist/index.html`, `dist/assets/*.css`, `dist/assets/*.js`).
@@ -131,3 +133,17 @@ Deploy the generated `dist/` directory to any static host (Vercel, Netlify, Clou
   - `npm run generate-world && npm run split-world-chunks && npm run validate-world`: exited `0` (`15 passed, 0 failed`).
   - `npm run build`: exited `0` (`tsc && vite build` in `1.73s`).
   - **Live Browser Runtime Test**: Could not run in Chrome because Chrome DevTools remote debugging was not enabled (`DevToolsActivePort` ENOENT). Live in-browser chunk streaming, collision, and FPS checks require running `npm run preview` in a desktop browser.
+
+---
+
+## 8. Phase 2C Campus Reconstruction, Friends, Collectibles & 8-Mission Storyline (2026-11-27)
+
+- **Added Systems**:
+  - `src/world/FriendNpcManager.ts`: `7` interactive RVITM friend NPCs (`Arjun`, `Divya`, `Karthik`, `Sneha`, `Rohan`, `Ananya`, `Vikram`) with `[E]` dialogue.
+  - `src/world/CollectiblesManager.ts`: `6` hidden Golden RVITM Badges (`₹100` reward each).
+  - `src/world/CampusBuilder.ts`: Central Library Entrance Canopy, RVITM Auditorium Plaza & Lit Signboard, and Quadrangle Terracotta Brick Lounge & Planters.
+  - `src/missions/MissionData.ts`: Expanded to `9` Story/Side missions (`Story 1`–`Story 8` + `Side Story: Meter Mele`) and `4` Phone Gigs.
+- **Current Build Verification (`2026-11-27`)**:
+  - **Passed**: `npm run generate-world` (0), `npm run split-world-chunks` (0), `npm run validate-world` (0 — `15 passed, 0 failed`), `npm run build` (0 — `tsc && vite build` in `1.73s`).
+  - **Failed (External Network)**: `npm run fetch-osm` exited `1` (Overpass API unreachable).
+  - **Not Run**: Live Chrome browser test & FPS measurement (`DevToolsActivePort` ENOENT).

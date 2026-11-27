@@ -72,6 +72,9 @@ export function buildCampus(scene: THREE.Scene, physics: PhysicsWorld): CampusVi
   // 8. Basketball Court & Cricket Practice Turf
   buildSportsZone(group, physics);
 
+  // 9. Library Pavilion, Auditorium Plaza & Brick Lounge Gardens
+  buildCampusPlazasAndZones(group, physics, campusLights);
+
   scene.add(group);
   return { campusLights, pavingMaterials, boomArm, flagMesh };
 }
@@ -839,4 +842,96 @@ function buildSportsZone(parent: THREE.Group, physics: PhysicsWorld): void {
   }
 
   parent.add(turfGroup);
+}
+
+function buildCampusPlazasAndZones(
+  parent: THREE.Group,
+  physics: PhysicsWorld,
+  campusLights: THREE.MeshStandardMaterial[]
+): void {
+  const brickMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.85 });
+  const canopyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.25 });
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+  const accentLightMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    emissive: 0xf59e0b,
+    emissiveIntensity: 0.5,
+  });
+  campusLights.push(accentLightMat);
+
+  // 1. Central Library Entrance Canopy & Signboard (East wing south-side)
+  const libGroup = new THREE.Group();
+  libGroup.position.set(13.5, 0, 8.5);
+  libGroup.rotation.y = ACADEMIC_BLOCK.rotationY;
+
+  const libRoof = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.28, 7.6), canopyMat);
+  libRoof.position.y = 3.6;
+  libRoof.castShadow = true;
+  libGroup.add(libRoof);
+
+  for (const pz of [-3.2, 3.2]) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.6, 8), pillarMat);
+    col.position.set(2.1, 1.8, pz);
+    col.castShadow = true;
+    libGroup.add(col);
+  }
+
+  const libBoard = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.4, 0.9),
+    new THREE.MeshBasicMaterial({ map: createSignboardTexture('CENTRAL LIBRARY', 'DIGITAL ARCHIVE & READING HALL', '#9a3412', '#fef3c7', '#f59e0b') })
+  );
+  libBoard.position.set(2.62, 3.6, 0);
+  libBoard.rotation.y = Math.PI / 2;
+  libGroup.add(libBoard);
+  parent.add(libGroup);
+
+  // 2. RVITM Auditorium Plaza & Chevron Lit Signboard (North wing)
+  const audGroup = new THREE.Group();
+  audGroup.position.set(13.5, 0, -26.5);
+  audGroup.rotation.y = ACADEMIC_BLOCK.rotationY;
+
+  const audStep = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.24, 9.0), brickMat);
+  audStep.position.y = 0.12;
+  audStep.receiveShadow = true;
+  audGroup.add(audStep);
+
+  const audCanopy = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.3, 8.4), canopyMat);
+  audCanopy.position.y = 3.9;
+  audCanopy.castShadow = true;
+  audGroup.add(audCanopy);
+
+  const audStrip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 8.2), accentLightMat);
+  audStrip.position.set(2.5, 3.72, 0);
+  audGroup.add(audStrip);
+
+  const audBoard = new THREE.Mesh(
+    new THREE.PlaneGeometry(5.4, 0.95),
+    new THREE.MeshBasicMaterial({ map: createSignboardTexture('RVITM AUDITORIUM', 'SEMINAR & TECH FEST HALL', '#1e1b4b', '#fde68a', '#f59e0b') })
+  );
+  audBoard.position.set(2.55, 3.9, 0);
+  audBoard.rotation.y = Math.PI / 2;
+  audGroup.add(audBoard);
+  parent.add(audGroup);
+
+  // 3. Terracotta Brick Lounge Benches & Garden Planters around Quadrangle
+  const planterMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.9 });
+  const benchCoords: Array<[number, number, number]> = [
+    [22.5, 4.0, 0],
+    [22.5, 16.0, 0],
+    [32.5, 16.0, Math.PI],
+  ];
+  for (const [bx, bz, rot] of benchCoords) {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.48, 2.8), brickMat);
+    bench.position.set(bx, 0.24, bz);
+    bench.rotation.y = rot;
+    bench.castShadow = true;
+    bench.receiveShadow = true;
+    parent.add(bench);
+    physics.addStaticBox(bx, 0.24, bz, 0.45, 0.24, 1.4, rot);
+
+    const planter = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.36, 1.1), planterMat);
+    planter.position.set(bx, 0.18, bz + 2.1);
+    planter.receiveShadow = true;
+    parent.add(planter);
+  }
 }

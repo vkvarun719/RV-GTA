@@ -11,6 +11,8 @@ import { PhotoMode } from './systems/PhotoMode';
 import { buildCampus } from './world/CampusBuilder';
 import { WorldStreamer } from './world/WorldStreamer';
 import { buildInstancedProps } from './world/InstancedProps';
+import { FriendNpcManager } from './world/FriendNpcManager';
+import { CollectiblesManager } from './world/CollectiblesManager';
 import { PlayerController } from './player/PlayerController';
 import { ChaseCamera } from './player/ChaseCamera';
 import { AudioEngine } from './audio/AudioEngine';
@@ -41,6 +43,8 @@ async function bootstrap(): Promise<void> {
 
   const campusVisuals = buildCampus(graphics.scene, physics);
   const propVisuals = buildInstancedProps(graphics.scene);
+  const friendNpcs = new FriendNpcManager(graphics.scene);
+  const collectibles = new CollectiblesManager(graphics.scene);
   const worldStreamer = new WorldStreamer(graphics.scene, physics, {
     loadRadiusM: 900,
     unloadRadiusM: 1300,
@@ -280,7 +284,16 @@ async function bootstrap(): Promise<void> {
       return;
     }
 
-    // 2. Check Chai / Canteen / Xerox shops
+    // 2. Check nearby Friend NPCs
+    const nearFriend = friendNpcs.findNearest(pos.x, pos.z);
+    if (nearFriend) {
+      const line = friendNpcs.interact(nearFriend);
+      hud.showSubtitle(line);
+      audio.playChime(true);
+      return;
+    }
+
+    // 3. Check Chai / Canteen / Xerox shops
     for (const item of INTERACTABLES) {
       if (Math.hypot(pos.x - item.x, pos.z - item.z) <= item.radius) {
         const cost = item.type === 'chai' ? 20 : item.type === 'xerox' ? 30 : 35;
@@ -387,6 +400,15 @@ async function bootstrap(): Promise<void> {
 
       const activePos = vehicleManager.getActivePosition() ?? player.getPosition();
       worldStreamer.update(activePos.x, activePos.z);
+      friendNpcs.update(dt, activePos.x, activePos.z);
+      const pickedBadge = collectibles.update(dt, activePos.x, activePos.z);
+      if (pickedBadge) {
+        const prog = collectibles.getProgress();
+        saveManager.data.cash += 100;
+        saveManager.save();
+        audio.playChime(true);
+        hud.showToast(`${pickedBadge.label} (${prog.collected}/${prog.total}) +₹100!`);
+      }
       const story1Active = missionManager.activeMission?.definition.id === 'story-1-attendance';
       const caughtByGuard = trafficManager.update(dt, activePos, story1Active);
 
@@ -416,10 +438,15 @@ async function bootstrap(): Promise<void> {
         if (nearVeh) {
           prompt = `[F] Ride ${nearVeh.model.spec.name}`;
         } else {
-          for (const item of INTERACTABLES) {
-            if (Math.hypot(activePos.x - item.x, activePos.z - item.z) <= item.radius) {
-              prompt = `[E] ${item.label}`;
-              break;
+          const nearFriend = friendNpcs.findNearest(activePos.x, activePos.z);
+          if (nearFriend) {
+            prompt = `[E] Talk to ${nearFriend.name} (${nearFriend.branch})`;
+          } else {
+            for (const item of INTERACTABLES) {
+              if (Math.hypot(activePos.x - item.x, activePos.z - item.z) <= item.radius) {
+                prompt = `[E] ${item.label}`;
+                break;
+              }
             }
           }
         }
