@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "fetch-osm": "node scripts/fetch-osm.mjs"
+    "fetch-osm": "node scripts/fetch-osm.mjs",
+    "generate-world": "node scripts/generate-world.mjs",
+    "split-world-chunks": "node scripts/split-world-chunks.mjs",
+    "validate-world": "node scripts/validate-world.mjs",
+    "build-world": "npm run fetch-osm && npm run generate-world && npm run split-world-chunks && npm run validate-world"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

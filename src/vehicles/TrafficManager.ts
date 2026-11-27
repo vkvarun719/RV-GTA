@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   AI_TRAFFIC_LOOP_CROSS,
   AI_TRAFFIC_LOOP_EAST,
@@ -25,6 +27,8 @@ interface CampusWalker {
   group: THREE.Group;
   leftLeg: THREE.Mesh;
   rightLeg: THREE.Mesh;
+  mixer?: THREE.AnimationMixer;
+  fallbackGroup?: THREE.Group;
   path: [number, number][];
   wpIdx: number;
   speed: number;
@@ -47,7 +51,41 @@ export class TrafficManager {
   constructor(scene: THREE.Scene, physics: PhysicsWorld) {
     this.spawnRoadTraffic(scene, physics);
     this.spawnCampusWalkers(scene);
+    this.upgradeWalkersToSkeletal();
     this.buildIdGuard(scene);
+  }
+
+  private upgradeWalkersToSkeletal(): void {
+    const loader = new GLTFLoader();
+    loader.load(
+      '/models/player.glb',
+      (gltf) => {
+        const walkClip = gltf.animations.find((a) => a.name === 'Walk');
+        if (!walkClip) return;
+        this.walkers.forEach((w, idx) => {
+          const cloned = cloneSkeleton(gltf.scene) as THREE.Group;
+          cloned.rotation.y = Math.PI;
+          cloned.scale.setScalar(0.95);
+          cloned.traverse((obj) => {
+            if ((obj as THREE.Mesh).isMesh) {
+              (obj as THREE.Mesh).castShadow = true;
+            }
+          });
+          // Hide primitive fallback children
+          w.group.children.forEach((ch) => {
+            ch.visible = false;
+          });
+          w.group.add(cloned);
+          const mixer = new THREE.AnimationMixer(cloned);
+          const action = mixer.clipAction(walkClip);
+          action.time = idx * 0.4;
+          action.play();
+          w.mixer = mixer;
+        });
+      },
+      undefined,
+      () => {}
+    );
   }
 
   private spawnRoadTraffic(scene: THREE.Scene, physics: PhysicsWorld): void {
@@ -254,10 +292,14 @@ export class TrafficManager {
         w.z += (dz / dist) * w.speed * dt;
       }
 
-      w.phase += dt * w.speed * 3.2;
-      const swing = Math.sin(w.phase) * 0.5;
-      w.leftLeg.rotation.x = swing;
-      w.rightLeg.rotation.x = -swing;
+      if (w.mixer) {
+        w.mixer.update(dt);
+      } else {
+        w.phase += dt * w.speed * 3.2;
+        const swing = Math.sin(w.phase) * 0.5;
+        w.leftLeg.rotation.x = swing;
+        w.rightLeg.rotation.x = -swing;
+      }
       w.group.position.set(w.x, 0, w.z);
       w.group.rotation.y = w.yaw;
     }

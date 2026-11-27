@@ -5,9 +5,11 @@ import type { InputManager } from '../systems/InputManager';
 export class ChaseCamera {
   public yaw = Math.PI * 0.52;
   public pitch = 0.24;
-  public distance = 6.2;
+  public distance = 5.4;
   private currentPos = new THREE.Vector3(78, 4, -17);
   private currentLookAt = new THREE.Vector3(72, 1.5, -17);
+  private currentFov = 62;
+  private currentDist = 5.4;
   private idleSinceMouse = 0;
 
   // Photo mode free-camera state
@@ -56,13 +58,23 @@ export class ChaseCamera {
       this.yaw += diff * Math.min(1, dt * 1.8);
     }
 
-    const desiredDist = isDriving ? Math.max(this.distance, 6.8) : this.distance;
-    const pivot = new THREE.Vector3(targetPos.x, targetPos.y + (isDriving ? 1.55 : 1.48), targetPos.z);
+    const isSprinting = !isDriving && input.isDown('ShiftLeft');
+    const targetDist = isDriving ? Math.max(this.distance, 7.2) : isSprinting ? this.distance + 0.9 : this.distance;
+    this.currentDist += (targetDist - this.currentDist) * Math.min(1, dt * 6);
+
+    const targetFov = isDriving ? 69 : isSprinting ? 67 : 62;
+    this.currentFov += (targetFov - this.currentFov) * Math.min(1, dt * 5);
+    if (Math.abs(camera.fov - this.currentFov) > 0.05) {
+      camera.fov = this.currentFov;
+      camera.updateProjectionMatrix();
+    }
+
+    const pivot = new THREE.Vector3(targetPos.x, targetPos.y + (isDriving ? 1.65 : 1.52), targetPos.z);
 
     const cosPitch = Math.cos(this.pitch);
-    const offsetX = Math.sin(this.yaw) * cosPitch * desiredDist;
-    const offsetY = Math.sin(this.pitch) * desiredDist;
-    const offsetZ = Math.cos(this.yaw) * cosPitch * desiredDist;
+    const offsetX = Math.sin(this.yaw) * cosPitch * this.currentDist;
+    const offsetY = Math.sin(this.pitch) * this.currentDist;
+    const offsetZ = Math.cos(this.yaw) * cosPitch * this.currentDist;
 
     let camX = pivot.x + offsetX;
     let camY = Math.max(0.65, pivot.y + offsetY);

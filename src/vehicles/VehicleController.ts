@@ -15,6 +15,8 @@ export interface DrivableVehicle {
   yaw: number;
   steerVisual: number;
   leanVisual: number;
+  pitchVisual: number;
+  prevSpeed: number;
   wheelSpin: number;
   distanceKm: number;
   fareInr: number;
@@ -76,6 +78,8 @@ export class VehicleManager {
       yaw,
       steerVisual: 0,
       leanVisual: 0,
+      pitchVisual: 0,
+      prevSpeed: 0,
       wheelSpin: 0,
       distanceKm: 0,
       fareInr: 30,
@@ -197,12 +201,15 @@ export class VehicleManager {
         const lateralGrip = brake ? 2.4 : isRaining ? 6.2 : 11.0;
         latSpeed *= Math.max(0, 1 - dt * lateralGrip);
 
-        // Visual lean & brake light brightness
+        // Visual lean, suspension pitch (nose dive on braking, squat on accel) & brake light brightness
+        const accelRate = (fwdSpeed - v.prevSpeed) / Math.max(0.008, dt);
+        const targetPitch = Math.max(-0.075, Math.min(0.075, -accelRate * 0.0045));
+        v.pitchVisual += (targetPitch - v.pitchVisual) * Math.min(1, dt * 9);
         const targetLean = -steer * speedFactor * v.model.spec.leanFactor;
         v.leanVisual += (targetLean - v.leanVisual) * Math.min(1, dt * 10);
         const brakingNow = brake || (throttle < -0.1 && fwdSpeed > 0.5);
         for (const bm of v.model.brakeLightMats) {
-          bm.emissiveIntensity = brakingNow ? 2.2 : 0.35;
+          bm.emissiveIntensity = brakingNow ? 2.4 : 0.35;
         }
       } else {
         // Parked / idle damping
@@ -210,10 +217,12 @@ export class VehicleManager {
         latSpeed *= Math.max(0, 1 - dt * 8.0);
         v.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
         v.leanVisual *= 0.85;
+        v.pitchVisual *= 0.85;
         for (const bm of v.model.brakeLightMats) {
           bm.emissiveIntensity = 0.18;
         }
       }
+      v.prevSpeed = fwdSpeed;
 
       const nextVx = fwdX * fwdSpeed + rightX * latSpeed;
       const nextVz = fwdZ * fwdSpeed + rightZ * latSpeed;
@@ -228,13 +237,14 @@ export class VehicleManager {
       // Sync Three.js mesh to physics body & guard world bounds
       const pos = v.body.translation();
       const hy = v.model.spec.halfExtents[1];
-      if (pos.y < -10 || Math.abs(pos.x) > 430 || Math.abs(pos.z) > 430) {
+      if (pos.y < -10 || Math.abs(pos.x) > 2100 || Math.abs(pos.z) > 2100) {
         v.body.setTranslation({ x: 68, y: hy + 0.2, z: -20 }, true);
         v.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       }
       const syncedPos = v.body.translation();
-      v.model.group.position.set(syncedPos.x, syncedPos.y - hy, syncedPos.z);
-      v.model.group.rotation.set(0, yaw, v.leanVisual, 'YXZ');
+      const suspensionBounce = isActive ? Math.sin(v.wheelSpin * 0.6) * 0.012 * Math.min(1, v.speedKmh / 25) : 0;
+      v.model.group.position.set(syncedPos.x, syncedPos.y - hy + suspensionBounce, syncedPos.z);
+      v.model.group.rotation.set(v.pitchVisual, yaw, v.leanVisual, 'YXZ');
 
       v.wheelSpin += fwdSpeed * dt * 2.8;
       for (const w of v.model.wheels) {

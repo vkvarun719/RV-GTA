@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-11-27T03:17:49.744Z",
+  "generator": "generate-world.mjs (Node.js, hand-rolled GLB writer, no OSM2World or Blender)",
+  "origin": {
+    "lat": 12.8729154,
+    "lon": 77.5757331
+  },
+  "radiusMeters": 250,
+  "osmSource": "overpass-api",
+  "osmGeneratedAt": "2026-11-25T11:17:14.612Z",
+  "attribution": "© OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+  "outputs": {
+    "glb": "public/world/generated/world.glb"
+  },
+  "statistics": {
+    "buildings": 282,
+    "roads": 61,
+    "heightSources": {}
+  },
+  "limitations": [
+    "Building facades are extruded footprint polygons — no windows/doors in this pass.",
+    "Roads are flat ribbons — no intersections, markings or kerbs.",
+    "No terrain elevation — everything is on Y=0 ground plane.",
+    "No textures in this pass — materials are solid colours.",
+    "OSM data covers 250 m (not full 2 km — re-run fetch-osm with network access)."
+  ]
+}

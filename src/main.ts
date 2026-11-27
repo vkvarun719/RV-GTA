@@ -9,7 +9,7 @@ import { WeatherSystem } from './systems/WeatherSystem';
 import { ClipRecorder } from './systems/ClipRecorder';
 import { PhotoMode } from './systems/PhotoMode';
 import { buildCampus } from './world/CampusBuilder';
-import { buildCity } from './world/CityBuilder';
+import { WorldStreamer } from './world/WorldStreamer';
 import { buildInstancedProps } from './world/InstancedProps';
 import { PlayerController } from './player/PlayerController';
 import { ChaseCamera } from './player/ChaseCamera';
@@ -40,17 +40,27 @@ async function bootstrap(): Promise<void> {
   }
 
   const campusVisuals = buildCampus(graphics.scene, physics);
-  const cityVisuals = buildCity(graphics.scene, physics);
   const propVisuals = buildInstancedProps(graphics.scene);
+  const worldStreamer = new WorldStreamer(graphics.scene, physics, {
+    loadRadiusM: 900,
+    unloadRadiusM: 1300,
+    onError: (msg) => {
+      console.warn('[WorldStreamer]', msg);
+      hud.showToast(msg);
+    },
+  });
+  void worldStreamer.init(0, 0);
+
+  // Expose debug handle for automated runtime verification
+  (window as unknown as Record<string, unknown>).__nammaWorld = worldStreamer;
 
   const weather = new WeatherSystem(
     graphics,
     {
-      roadMaterials: cityVisuals.roadMaterials,
+      roadMaterials: [],
       pavingMaterials: campusVisuals.pavingMaterials,
       nightLights: [
         ...campusVisuals.campusLights,
-        ...cityVisuals.shopLights,
         propVisuals.streetLampMaterial,
       ],
     },
@@ -376,6 +386,7 @@ async function bootstrap(): Promise<void> {
       physics.step(dt);
 
       const activePos = vehicleManager.getActivePosition() ?? player.getPosition();
+      worldStreamer.update(activePos.x, activePos.z);
       const story1Active = missionManager.activeMission?.definition.id === 'story-1-attendance';
       const caughtByGuard = trafficManager.update(dt, activePos, story1Active);
 

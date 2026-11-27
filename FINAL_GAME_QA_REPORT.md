@@ -89,3 +89,45 @@ npm run build
 npm run preview
 ```
 Deploy the generated `dist/` directory to any static host (Vercel, Netlify, Cloudflare Pages, GitHub Pages, or Firebase Hosting).
+
+---
+
+## 6. Phase 2A World Pipeline & Animation Reconciliation (2026-11-27)
+
+- **World Pipeline (`scripts/`)**:
+  - `scripts/fetch-osm.mjs`: Configured for `12.8729154, 77.5757331` with a `2000` m radius, multipolygon relation handling, and explicit height source tracking (`mapped-height`, `mapped-levels`, `estimated-default-3m`). Fails with exit code `1` if Overpass is unreachable without overwriting existing data.
+  - `scripts/generate-world.mjs`: Pure Node.js binary GLTF 2.0 (`world.glb`) generator extruding building footprints and road ribbons from `src/data/campus-osm.json` without requiring OSM2World or Blender.
+  - `scripts/split-world-chunks.mjs`: Pure JavaScript 500 m × 500 m triangle-level spatial chunk splitter preserving materials and world transforms and writing `public/world/generated/manifest.json`.
+  - `scripts/validate-world.mjs`: Validates `world.glb` and all chunk GLBs (parse, vertex/NaN/Infinity checks, bounding box, manifest consistency, and campus origin containment).
+- **Verified Outputs**:
+  - `public/world/generated/world.glb` (`0.24 MB`, 9,918 vertices, 282 buildings, 61 roads)
+  - `public/world/generated/chunks/chunk_*.glb` (64 chunk files) and `public/world/generated/manifest.json`
+  - `npm run validate-world`: 10 passed, 0 failed.
+  - `npm run build`: `tsc` + `vite build` passed in 1.72s.
+- **Player Animation (`src/animation/AnimationController.ts`)**:
+  - Integrated into `src/player/PlayerController.ts` using the existing `public/models/player.glb` clips (`Idle`, `Walk`, `Run`, `TPose`) with fallback mapping for `Sprint` → `Run` and `Land`/`Turn`/`VehicleEnter`/`VehicleExit` → `Idle` plus procedural tilt/squash.
+- **Known Limitations**:
+  - Overpass API endpoints were unreachable from the build environment, so `src/data/campus-osm.json` currently on disk remains the previously fetched `250` m dataset (282 buildings, 61 roads) with its pre-existing `levels` values. Run `npm run fetch-osm` from a network-connected environment to populate the full `2000` m dataset and regenerate `world.glb` / chunks.
+  - Separate Mixamo animation GLB files are not included; only the clips bundled in `public/models/player.glb` (`Idle`, `Walk`, `Run`, `TPose`) are present.
+
+---
+
+## 7. Phase 2B Spatial Chunking & World Streaming Integration (2026-11-27)
+
+- **Spatial Chunking (`scripts/generate-world.mjs`, `scripts/split-world-chunks.mjs`)**:
+  - Removed the 4 km × 4 km ground plane from `world.glb` so ground is never duplicated across chunks.
+  - Implemented Sutherland-Hodgman 2D polygon clipping against each 500 m × 500 m cell `[minX, maxX] × [minZ, maxZ]`, preserving materials, normals, and world coordinates.
+  - Cleans stale `chunks/*.glb` files before regenerating.
+  - Current 250 m OSM dataset produces **4** spatial chunks (`chunk_-1_-1.glb`, `chunk_-1_0.glb`, `chunk_0_-1.glb`, `chunk_0_0.glb`) with real building & road geometry and **0** 12-vertex ground-only stubs.
+- **Validation (`scripts/validate-world.mjs`)**:
+  - Enforces vertex containment within declared `cellBounds` (`±0.05` m tolerance), rejects 12-vertex stubs and oversized chunks (`> 500.1` m), verifies manifest `bbox` matches actual geometry, checks for stale unreferenced chunk files, and verifies geometry preservation (`3,556` chunk tris >= `3,304` source tris).
+  - `npm run validate-world`: **15 passed, 0 failed**.
+- **Runtime World Streaming (`src/world/`)**:
+  - Implemented `WorldCoordinateSystem.ts`, `WorldAssetLoader.ts`, `WorldCollisionManager.ts` (Rapier `trimesh` building colliders per chunk), `WorldChunkManager.ts`, and `WorldStreamer.ts`.
+  - Connected `WorldStreamer` to `src/main.ts` (replacing `CityBuilder` to avoid overlapping procedural & generated worlds while preserving `CampusBuilder` landmarks, `InstancedProps`, vehicles, traffic, missions, UI, audio, weather, save/load, and photo mode).
+  - Expanded ground physics collider (`PhysicsWorld.ts`) to `2200` m half-extents and player/vehicle out-of-bounds respawn guards to `2100` m.
+- **Build & Runtime Verification**:
+  - `npm ci`: exited `0` (`0 vulnerabilities`).
+  - `npm run generate-world && npm run split-world-chunks && npm run validate-world`: exited `0` (`15 passed, 0 failed`).
+  - `npm run build`: exited `0` (`tsc && vite build` in `1.73s`).
+  - **Live Browser Runtime Test**: Could not run in Chrome because Chrome DevTools remote debugging was not enabled (`DevToolsActivePort` ENOENT). Live in-browser chunk streaming, collision, and FPS checks require running `npm run preview` in a desktop browser.

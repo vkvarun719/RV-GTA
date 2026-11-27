@@ -54,18 +54,24 @@ export function buildInstancedProps(scene: THREE.Scene): PropHandles {
   const greenCrowns = treePositions.filter((t) => !t.isGulmohar);
   const flameCrowns = treePositions.filter((t) => t.isGulmohar);
 
-  const crownGeo = new THREE.IcosahedronGeometry(2.1, 1);
-  const greenMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.85, flatShading: true });
-  const flameMat = new THREE.MeshStandardMaterial({ color: 0xe65100, roughness: 0.8, flatShading: true });
+  const crownGeo = new THREE.IcosahedronGeometry(1.75, 2);
+  const greenMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.86 });
+  const flameMat = new THREE.MeshStandardMaterial({ color: 0xe65100, roughness: 0.82 });
 
-  const greenMesh = new THREE.InstancedMesh(crownGeo, greenMat, greenCrowns.length);
-  const flameMesh = new THREE.InstancedMesh(crownGeo, flameMat, flameCrowns.length);
+  // 3 overlapping foliage lobes per tree for organic silhouette
+  const greenMesh = new THREE.InstancedMesh(crownGeo, greenMat, greenCrowns.length * 3);
+  const flameMesh = new THREE.InstancedMesh(crownGeo, flameMat, flameCrowns.length * 3);
   greenMesh.castShadow = true;
   flameMesh.castShadow = true;
 
   const dummy = new THREE.Object3D();
   let gIdx = 0;
   let fIdx = 0;
+  const lobeOffsets: Array<[number, number, number, number]> = [
+    [0, 3.85, 0, 1.15],
+    [0.95, 3.35, 0.6, 0.85],
+    [-0.85, 3.45, -0.55, 0.9],
+  ];
 
   treePositions.forEach((t, i) => {
     dummy.position.set(t.x, 1.6 * t.scale, t.z);
@@ -74,11 +80,14 @@ export function buildInstancedProps(scene: THREE.Scene): PropHandles {
     dummy.updateMatrix();
     trunks.setMatrixAt(i, dummy.matrix);
 
-    dummy.position.set(t.x, 3.9 * t.scale, t.z);
-    dummy.scale.set(t.scale * 1.15, t.scale * 0.9, t.scale * 1.15);
-    dummy.updateMatrix();
-    if (t.isGulmohar) flameMesh.setMatrixAt(fIdx++, dummy.matrix);
-    else greenMesh.setMatrixAt(gIdx++, dummy.matrix);
+    for (const [ox, oy, oz, ls] of lobeOffsets) {
+      dummy.position.set(t.x + ox * t.scale, oy * t.scale, t.z + oz * t.scale);
+      dummy.scale.set(t.scale * ls * 1.1, t.scale * ls * 0.82, t.scale * ls * 1.1);
+      dummy.rotation.set(0, (i * 1.7 + ox) % Math.PI, 0);
+      dummy.updateMatrix();
+      if (t.isGulmohar) flameMesh.setMatrixAt(fIdx++, dummy.matrix);
+      else greenMesh.setMatrixAt(gIdx++, dummy.matrix);
+    }
   });
 
   scene.add(trunks, greenMesh, flameMesh);

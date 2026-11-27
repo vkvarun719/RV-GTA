@@ -16,9 +16,9 @@ export class PhysicsWorld {
     await RAPIER.init();
     this.world = new RAPIER.World({ x: 0, y: -22, z: 0 });
 
-    // Large ground plane collider (y = 0 top surface)
+    // Large ground plane collider (y = 0 top surface) covering 4 km × 4 km world
     const groundBody = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.5, 0));
-    this.world.createCollider(RAPIER.ColliderDesc.cuboid(450, 0.5, 450).setFriction(0.95), groundBody);
+    this.world.createCollider(RAPIER.ColliderDesc.cuboid(2200, 0.5, 2200).setFriction(0.95), groundBody);
   }
 
   step(dt: number): void {

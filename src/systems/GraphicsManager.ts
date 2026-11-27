@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { GraphicsQuality } from '../types/game';
 
 export class GraphicsManager {
@@ -23,12 +24,18 @@ export class GraphicsManager {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.toneMappingExposure = 1.12;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x8ec5ea);
-    this.scene.fog = new THREE.FogExp2(0x9dcbe6, 0.0024);
+    this.scene.fog = new THREE.FogExp2(0x9dcbe6, 0.0022);
+
+    // Subtle PBR environment reflections for glass, vehicle paint, chrome & wet asphalt
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.52;
+    pmrem.dispose();
 
     this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.25, 650);
 
@@ -47,7 +54,8 @@ export class GraphicsManager {
     this.sunLight.shadow.camera.right = d;
     this.sunLight.shadow.camera.top = d;
     this.sunLight.shadow.camera.bottom = -d;
-    this.sunLight.shadow.bias = -0.0007;
+    this.sunLight.shadow.bias = -0.0004;
+    this.sunLight.shadow.normalBias = 0.02;
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
 
@@ -68,7 +76,7 @@ export class GraphicsManager {
       this.renderer.setPixelRatio(Math.min(dpr, 1.25));
       this.renderer.shadowMap.enabled = true;
       this.sunLight.castShadow = true;
-      this.sunLight.shadow.mapSize.set(512, 512);
+      this.sunLight.shadow.mapSize.set(1024, 1024);
       this.sunLight.shadow.map?.dispose();
       this.sunLight.shadow.map = null;
       this.camera.far = 520;
@@ -76,7 +84,7 @@ export class GraphicsManager {
       this.renderer.setPixelRatio(Math.min(dpr, 1.75));
       this.renderer.shadowMap.enabled = true;
       this.sunLight.castShadow = true;
-      this.sunLight.shadow.mapSize.set(1024, 1024);
+      this.sunLight.shadow.mapSize.set(2048, 2048);
       this.sunLight.shadow.map?.dispose();
       this.sunLight.shadow.map = null;
       this.camera.far = 650;

@@ -4,7 +4,7 @@ import { LANDMARKS } from '../data/campus-layout';
 import osmDataRaw from '../data/campus-osm.json';
 import type { BuildingFootprint, OsmDataset, RoadPolyline } from '../types/game';
 import type { PhysicsWorld } from '../systems/PhysicsWorld';
-import { createAsphaltTexture, createSignboardTexture, createSpeedBreakerTexture } from './Textures';
+import { createAsphaltTexture, createMicroNoiseBumpTexture, createSignboardTexture, createSpeedBreakerTexture } from './Textures';
 
 const osmData = osmDataRaw as OsmDataset;
 
@@ -45,17 +45,22 @@ export function buildCity(scene: THREE.Scene, physics: PhysicsWorld): CityVisual
 
 function buildRoads(parent: THREE.Group, roadMaterials: THREE.MeshStandardMaterial[]): void {
   const asphaltTex = createAsphaltTexture();
+  const roadBump = createMicroNoiseBumpTexture(18, 18);
 
   const mainRoadMat = new THREE.MeshStandardMaterial({
     color: 0x2c3038,
     map: asphaltTex,
-    roughness: 0.85,
+    bumpMap: roadBump,
+    bumpScale: 0.035,
+    roughness: 0.82,
     metalness: 0.08,
     side: THREE.DoubleSide,
   });
   const localRoadMat = new THREE.MeshStandardMaterial({
     color: 0x3b4049,
-    roughness: 0.88,
+    bumpMap: roadBump,
+    bumpScale: 0.03,
+    roughness: 0.86,
     metalness: 0.05,
     side: THREE.DoubleSide,
   });
@@ -199,6 +204,35 @@ function buildSpeedBreakers(parent: THREE.Group, physics: PhysicsWorld): void {
 
     physics.addStaticBox(s.x, 0.08, s.z, 6.5, 0.09, 0.45, s.rotY, 0.9);
   }
+
+  // Zebra Crosswalk outside RVITM Main Gate on 80 Feet Road
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.7 });
+  for (let i = -5; i <= 5; i++) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.02, 2.8), stripeMat);
+    stripe.position.set(62.5 + i * 1.1, 0.048, -19.8);
+    stripe.rotation.y = -0.14;
+    stripe.receiveShadow = true;
+    parent.add(stripe);
+  }
+
+  // 3-Aspect Traffic Signal at 80 Ft Rd & Brookes Haven Junction
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7, roughness: 0.35 });
+  const sigGroup = new THREE.Group();
+  sigGroup.position.set(45.5, 0, 141.0);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 5.2, 8), poleMat);
+  pole.position.y = 2.6;
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.14, 0.14), poleMat);
+  arm.position.set(-1.3, 5.0, 0);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.15, 0.38), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+  box.position.set(-2.2, 4.5, 0);
+  const red = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.3 }));
+  red.position.set(-2.2, 4.82, 0.19);
+  const amber = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.3 }));
+  amber.position.set(-2.2, 4.5, 0.19);
+  const green = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.6 }));
+  green.position.set(-2.2, 4.18, 0.19);
+  sigGroup.add(pole, arm, box, red, amber, green);
+  parent.add(sigGroup);
 }
 
 function buildHangoutSpots(

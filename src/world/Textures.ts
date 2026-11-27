@@ -21,6 +21,48 @@ function finishTexture(canvas: HTMLCanvasElement, repeatX = 1, repeatY = 1): THR
   return tex;
 }
 
+export function createMicroNoiseBumpTexture(repeatX = 12, repeatY = 12): THREE.CanvasTexture {
+  const [c, ctx] = makeCanvas(128, 128);
+  const img = ctx.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 110 + Math.floor(Math.random() * 48);
+    img.data[i] = v;
+    img.data[i + 1] = v;
+    img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+export function createBuildingWindowRoughnessMap(): THREE.CanvasTexture {
+  const [c, ctx] = makeCanvas(256, 256);
+  // Rough concrete (white = 1.0 roughness)
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillRect(0, 0, 256, 256);
+  // Glossy glass panes (dark = ~0.12 roughness for real sky/env reflections!)
+  for (let i = 0; i < 4; i++) {
+    const x = 14 + i * 60;
+    ctx.fillStyle = '#1f1f1f';
+    ctx.fillRect(x, 62, 46, 152);
+    // Mullions stay matte metallic
+    ctx.fillStyle = '#888888';
+    ctx.fillRect(x + 21, 62, 3, 152);
+    ctx.fillRect(x, 134, 46, 4);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(6, 7);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export function createGateBoardTexture(): THREE.CanvasTexture {
   const [c, ctx] = makeCanvas(1024, 256);
 

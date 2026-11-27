@@ -88,9 +88,9 @@ export function createVehicleModel(kind: VehicleKind, variantSeed = 0): BuiltVeh
   const brakeLightMats: THREE.MeshStandardMaterial[] = [];
 
   const tireMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85 });
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.7, roughness: 0.3 });
-  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.25 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x1e3a4c, roughness: 0.15, metalness: 0.45 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.85, roughness: 0.2 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.16 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x162b38, roughness: 0.08, metalness: 0.72 });
 
   const makeHeadlight = () => {
     const m = new THREE.MeshStandardMaterial({
@@ -112,12 +112,14 @@ export function createVehicleModel(kind: VehicleKind, variantSeed = 0): BuiltVeh
   };
   const addWheel = (x: number, y: number, z: number, radius: number, width: number) => {
     const w = new THREE.Group();
-    const tire = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 12), tireMat);
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 18), tireMat);
     tire.rotation.z = Math.PI / 2;
     tire.castShadow = true;
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.52, radius * 0.52, width + 0.02, 8), rimMat);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.56, radius * 0.56, width + 0.02, 12), rimMat);
     hub.rotation.z = Math.PI / 2;
-    w.add(tire, hub);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.2, radius * 0.2, width + 0.04, 8), chromeMat);
+    cap.rotation.z = Math.PI / 2;
+    w.add(tire, hub, cap);
     w.position.set(x, y, z);
     group.add(w);
     wheels.push(w);
@@ -125,7 +127,7 @@ export function createVehicleModel(kind: VehicleKind, variantSeed = 0): BuiltVeh
 
   if (kind === 'scooter') {
     const paint = [0xf1f5f9, 0x0ea5e9, 0x14b8a6, 0x94a3b8][variantSeed % 4];
-    const bodyMat = new THREE.MeshStandardMaterial({ color: paint, roughness: 0.4, metalness: 0.2 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: paint, roughness: 0.22, metalness: 0.42 });
 
     // Rear cowling
     const rear = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.48, 0.85), bodyMat);
@@ -153,6 +155,19 @@ export function createVehicleModel(kind: VehicleKind, variantSeed = 0): BuiltVeh
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.12), chromeMat);
     bar.position.set(0, 1.05, 0.48);
     group.add(bar);
+
+    // Side mirrors & exhaust muffler
+    for (const mx of [-0.34, 0.34]) {
+      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.16, 6), chromeMat);
+      stalk.position.set(mx, 1.13, 0.48);
+      const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.06, 0.03), tireMat);
+      mirror.position.set(mx * 1.08, 1.21, 0.48);
+      group.add(stalk, mirror);
+    }
+    const muffler = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.52, 8), chromeMat);
+    muffler.rotation.x = Math.PI / 2;
+    muffler.position.set(0.28, 0.28, -0.45);
+    group.add(muffler);
 
     const hl = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.08), makeHeadlight());
     hl.position.set(0, 0.96, 0.63);

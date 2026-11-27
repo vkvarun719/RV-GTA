@@ -15,9 +15,21 @@ npm install
 npm run dev
 ```
 
-To refresh OpenStreetMap roads and building footprints around RVITM (`src/data/campus-osm.json`):
+## World Streaming Architecture (`src/world/`)
+- `WorldCoordinateSystem.ts` — Local ENU coordinates anchored at RVITM (`12.8729154, 77.5757331`) and 500 m × 500 m chunk indexing.
+- `WorldAssetLoader.ts` — Fetches `/world/generated/manifest.json` and chunk `.glb` files with in-flight deduplication.
+- `WorldChunkManager.ts` — Streams chunks in/out based on player position (`loadRadiusM = 900`, `unloadRadiusM = 1300`) and disposes unloaded meshes.
+- `WorldCollisionManager.ts` — Registers and removes Rapier static `trimesh` colliders for streamed building geometry.
+- `WorldStreamer.ts` — Coordinates the single 4 km × 4 km terrain plane and chunk streaming in `src/main.ts`.
+
+To refresh OpenStreetMap roads and building footprints around RVITM (`src/data/campus-osm.json`), generate `public/world/generated/world.glb`, split into 500 m spatial chunks, and validate:
 ```bash
 npm run fetch-osm
+npm run generate-world
+npm run split-world-chunks
+npm run validate-world
+# Or run all four in sequence:
+npm run build-world
 ```
 
 To build for production:

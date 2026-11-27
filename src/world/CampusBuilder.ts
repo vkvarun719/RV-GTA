@@ -5,11 +5,13 @@ import type { OsmDataset } from '../types/game';
 import type { PhysicsWorld } from '../systems/PhysicsWorld';
 import {
   createBasketballCourtTexture,
+  createBuildingWindowRoughnessMap,
   createBuildingWindowTexture,
   createCourtyardPaverTexture,
   createCricketTurfTexture,
   createDeptBoardTexture,
   createGateBoardTexture,
+  createMicroNoiseBumpTexture,
   createPhotoPanelTexture,
   createSignboardTexture,
 } from './Textures';
@@ -263,10 +265,17 @@ function buildAcademicBlock(
   bldg.rotation.y = rotationY;
 
   const windowTex = createBuildingWindowTexture();
-  const creamMat = new THREE.MeshStandardMaterial({ color: 0xeee8de, roughness: 0.78 });
-  const slateMat = new THREE.MeshStandardMaterial({ color: 0x3b4453, roughness: 0.65 });
-  const terracottaMat = new THREE.MeshStandardMaterial({ color: 0x8f2d26, roughness: 0.68 });
-  const facadeMat = new THREE.MeshStandardMaterial({ map: windowTex, roughness: 0.55, metalness: 0.12 });
+  const windowRough = createBuildingWindowRoughnessMap();
+  const concreteBump = createMicroNoiseBumpTexture(10, 10);
+  const creamMat = new THREE.MeshStandardMaterial({ color: 0xeee8de, roughness: 0.82, bumpMap: concreteBump, bumpScale: 0.04 });
+  const slateMat = new THREE.MeshStandardMaterial({ color: 0x3b4453, roughness: 0.65, bumpMap: concreteBump, bumpScale: 0.03 });
+  const terracottaMat = new THREE.MeshStandardMaterial({ color: 0x8f2d26, roughness: 0.68, bumpMap: concreteBump, bumpScale: 0.03 });
+  const facadeMat = new THREE.MeshStandardMaterial({
+    map: windowTex,
+    roughnessMap: windowRough,
+    roughness: 0.9,
+    metalness: 0.18,
+  });
 
   // Main 7-Floor Structural Tower
   const mainBody = new THREE.Mesh(new THREE.BoxGeometry(width, totalH, length), facadeMat);
@@ -357,6 +366,39 @@ function buildAcademicBlock(
   deck.position.set(porchBaseX - 0.5, 0.5, porchZ);
   deck.receiveShadow = true;
   bldg.add(deck);
+
+  // Stainless-steel stair handrails & glass double entrance doors
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.88, roughness: 0.22 });
+  for (const rz of [-6.4, 6.4]) {
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 4.2, 8), steelMat);
+    rail.position.set(porchBaseX + 1.1, 1.45, porchZ + rz);
+    rail.rotation.z = Math.PI / 2 - 0.24;
+    bldg.add(rail);
+    for (const px of [porchBaseX - 0.6, porchBaseX + 2.6]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8), steelMat);
+      post.position.set(px, px > porchBaseX ? 0.6 : 1.35, porchZ + rz);
+      bldg.add(post);
+    }
+  }
+  const lobbyDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.28, 3.4, 5.2), steelMat);
+  lobbyDoorFrame.position.set(width * 0.5 + 0.05, 2.7, porchZ);
+  bldg.add(lobbyDoorFrame);
+  const lobbyGlass = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 3.1, 4.6),
+    new THREE.MeshStandardMaterial({ color: 0x1e3a4c, roughness: 0.08, metalness: 0.75, emissive: 0xfef3c7, emissiveIntensity: 0.2 })
+  );
+  lobbyGlass.position.set(width * 0.5 + 0.08, 2.65, porchZ);
+  bldg.add(lobbyGlass);
+
+  // Rooftop solar panel array
+  const solarMat = new THREE.MeshStandardMaterial({ color: 0x172554, roughness: 0.2, metalness: 0.7 });
+  for (let sz = -32; sz <= 32; sz += 16) {
+    if (Math.abs(sz) < 12) continue;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.14, 5.5), solarMat);
+    panel.position.set(-2, totalH + 1.35, sz);
+    panel.rotation.z = 0.22;
+    bldg.add(panel);
+  }
 
   // 4 Tall Entrance Columns + Cantilevered Portico Canopy
   for (const cz of [-5.2, -1.8, 1.8, 5.2]) {
